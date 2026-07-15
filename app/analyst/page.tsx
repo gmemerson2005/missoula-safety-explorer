@@ -11,7 +11,9 @@ import { redirect } from "next/navigation";
 import { DATASETS, getDataset } from "@lib/datasets";
 import { fetchLayerTable, type FeatureProperties, type Result } from "@lib/arcgis";
 import { hasAnalystSession } from "@lib/auth";
+import { buildMapLayers } from "@lib/mapData";
 import DataTable from "@components/DataTable";
+import MapPanel from "@components/map/MapPanel";
 
 export const metadata: Metadata = { title: "Analyst console" };
 
@@ -111,9 +113,10 @@ export default async function AnalystPage() {
     redirect("/login?from=%2Fanalyst");
   }
 
-  const tableResults = await Promise.all(
-    DATASETS.map((dataset) => fetchLayerTable(dataset))
-  );
+  const [tableResults, mapData] = await Promise.all([
+    Promise.all(DATASETS.map((dataset) => fetchLayerTable(dataset))),
+    buildMapLayers(DATASETS),
+  ]);
   const byId = new Map<string, Result<FeatureProperties[]>>(
     DATASETS.map((dataset, i) => [dataset.id, tableResults[i]])
   );
@@ -134,6 +137,30 @@ export default async function AnalystPage() {
         with client-side search and column sorting. Data is fetched
         server-side and revalidated hourly.
       </p>
+
+      {/* Detailed map — all layers, full-attribute popups */}
+      <section aria-label="Detailed county map" className="mt-8">
+        {mapData.offline.map((entry) => (
+          <p
+            key={entry.title}
+            role="status"
+            className="mb-2 border border-danger/60 bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-danger"
+          >
+            ○ {entry.title} layer offline — not shown on map
+          </p>
+        ))}
+        {mapData.layers.length > 0 ? (
+          <div className="h-[480px] border border-line sm:h-[540px]">
+            <MapPanel layers={mapData.layers} role="analyst" />
+          </div>
+        ) : (
+          <div className="flex h-[420px] items-center justify-center border border-line bg-surface">
+            <p className="max-w-sm px-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-faint">
+              Map unavailable — all county layers are offline right now
+            </p>
+          </div>
+        )}
+      </section>
 
       {/* Per-group breakdowns */}
       <section aria-label="Breakdowns" className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -12,7 +12,9 @@ import Link from "next/link";
 import { DATASETS } from "@lib/datasets";
 import { fetchLayerCount } from "@lib/arcgis";
 import { hasAnalystSession } from "@lib/auth";
+import { buildMapLayers } from "@lib/mapData";
 import StatCard from "@components/StatCard";
+import MapPanel from "@components/map/MapPanel";
 
 export default async function Home({
   searchParams,
@@ -23,9 +25,17 @@ export default async function Home({
   const role =
     view === "analyst" && (await hasAnalystSession()) ? "analyst" : "public";
 
-  const countResults = await Promise.all(
-    DATASETS.map((dataset) => fetchLayerCount(dataset))
+  // The public map carries only the summary layers; the flood layer's 955
+  // polygons join the map for analysts. Note the withholding happens HERE,
+  // on the server — a public visitor's page payload simply never contains
+  // analyst-level geometry or attributes.
+  const mapDatasets = DATASETS.filter(
+    (dataset) => dataset.includeInPublicMap || role === "analyst"
   );
+  const [countResults, mapData] = await Promise.all([
+    Promise.all(DATASETS.map((dataset) => fetchLayerCount(dataset))),
+    buildMapLayers(mapDatasets),
+  ]);
   const sourcesOnline = countResults.filter((r) => r.ok).length;
 
   return (
@@ -77,13 +87,33 @@ export default async function Home({
         </div>
       </section>
 
-      {/* Map (wired up in the map milestone) */}
+      {/* Map */}
       <section aria-label="County map" className="mt-8">
-        <div className="flex h-[420px] items-center justify-center border border-line bg-surface">
-          <p className="font-mono text-xs uppercase tracking-[0.25em] text-faint">
-            Map module pending
+        {mapData.offline.map((entry) => (
+          <p
+            key={entry.title}
+            role="status"
+            className="mb-2 border border-danger/60 bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-danger"
+          >
+            ○ {entry.title} layer offline — not shown on map
           </p>
-        </div>
+        ))}
+        {mapData.layers.length > 0 ? (
+          <div className="h-[420px] border border-line sm:h-[480px]">
+            <MapPanel layers={mapData.layers} role={role} />
+          </div>
+        ) : (
+          <div className="flex h-[420px] items-center justify-center border border-line bg-surface">
+            <p className="max-w-sm px-4 text-center font-mono text-xs uppercase tracking-[0.25em] text-faint">
+              Map unavailable — all county layers are offline right now
+            </p>
+          </div>
+        )}
+        <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-faint">
+          {role === "analyst"
+            ? "Analyst map — popups expose full attributes; flood zones overlaid."
+            : "Public map — popups show names only."}
+        </p>
       </section>
 
       {/* Layer descriptions */}
