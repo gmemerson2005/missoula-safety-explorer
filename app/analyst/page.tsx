@@ -115,7 +115,7 @@ export default async function AnalystPage() {
 
   const [tableResults, mapData] = await Promise.all([
     Promise.all(DATASETS.map((dataset) => fetchLayerTable(dataset))),
-    buildMapLayers(DATASETS),
+    buildMapLayers(DATASETS, "analyst"),
   ]);
   const byId = new Map<string, Result<FeatureProperties[]>>(
     DATASETS.map((dataset, i) => [dataset.id, tableResults[i]])

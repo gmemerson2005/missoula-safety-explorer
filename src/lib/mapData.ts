@@ -16,10 +16,22 @@ export interface MapLayersResult {
 }
 
 export async function buildMapLayers(
-  datasets: DatasetConfig[]
+  datasets: DatasetConfig[],
+  role: "public" | "analyst"
 ): Promise<MapLayersResult> {
+  // The role decides which attributes the county server is even ASKED for.
+  // Public maps fetch the name field only, so the serialized page payload a
+  // public visitor receives contains no other attributes to "unhide" —
+  // popup rendering merely displays what the server already withheld.
   const results = await Promise.all(
-    datasets.map((dataset) => fetchLayerGeoJSON(dataset))
+    datasets.map((dataset) =>
+      fetchLayerGeoJSON(
+        dataset,
+        role === "analyst"
+          ? dataset.tableFields.map((f) => f.key)
+          : [dataset.nameField]
+      )
+    )
   );
 
   const layers: MapLayerData[] = [];
@@ -33,7 +45,7 @@ export async function buildMapLayers(
         title: dataset.title,
         kind: dataset.geometryKind,
         nameField: dataset.nameField,
-        fields: dataset.tableFields,
+        fields: role === "analyst" ? dataset.tableFields : [],
         geojson: result.value,
       });
     } else {

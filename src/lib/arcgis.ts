@@ -81,12 +81,18 @@ export async function fetchLayerCount(
  * Geometry + display attributes for the map, in WGS84. Polygon layers carry
  * server-side generalization params from the dataset config to keep payloads
  * small (raw Fire Districts is ~4.3 MB; generalized is ~384 KB).
+ *
+ * `outFields` narrows which attributes the county server returns. This is
+ * part of the access gating: the public map is fetched with the name field
+ * only, so a public visitor's page payload never even contains the other
+ * attributes — withholding beats hiding.
  */
 export async function fetchLayerGeoJSON(
-  dataset: DatasetConfig
+  dataset: DatasetConfig,
+  outFields?: string[]
 ): Promise<Result<LayerGeoJSON>> {
   const url = buildQueryUrl(dataset, {
-    outFields: dataset.tableFields.map((f) => f.key).join(","),
+    outFields: (outFields ?? dataset.tableFields.map((f) => f.key)).join(","),
     outSR: "4326",
     f: "geojson",
     ...dataset.geometryParams,

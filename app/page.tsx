@@ -34,7 +34,7 @@ export default async function Home({
   );
   const [countResults, mapData] = await Promise.all([
     Promise.all(DATASETS.map((dataset) => fetchLayerCount(dataset))),
-    buildMapLayers(mapDatasets),
+    buildMapLayers(mapDatasets, role),
   ]);
   const sourcesOnline = countResults.filter((r) => r.ok).length;
 
