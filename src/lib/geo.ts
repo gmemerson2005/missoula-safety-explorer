@@ -45,3 +45,55 @@ export function geometryAreaSqMi(geometry: Geometry | null | undefined): number 
   }
   return sqM / SQ_M_PER_SQ_MI;
 }
+
+/** URL-safe slug for district routes: "East Missoula RFD" → "east-missoula-rfd". */
+export function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Standard ray-casting point-in-ring test ([lon, lat] order, like GeoJSON). */
+function pointInRing(point: Position, ring: Position[]): boolean {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function pointInPolygon(point: Position, rings: Position[][]): boolean {
+  if (rings.length === 0 || !pointInRing(point, rings[0])) return false;
+  // Inside the outer ring; a hit in any hole cancels it.
+  for (let i = 1; i < rings.length; i++) {
+    if (pointInRing(point, rings[i])) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a [lon, lat] point falls inside a (Multi)Polygon. Used to count
+ * polling locations per fire district. Boundaries are server-generalized,
+ * so points within a few hundred meters of an edge may misclassify — fine
+ * for an "approximately N locations" readout, and flagged as approximate in
+ * the UI.
+ */
+export function pointInGeometry(
+  point: Position,
+  geometry: Geometry | null | undefined
+): boolean {
+  if (!geometry) return false;
+  if (geometry.type === "Polygon") {
+    return pointInPolygon(point, geometry.coordinates);
+  }
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.some((poly) => pointInPolygon(point, poly));
+  }
+  return false;
+}

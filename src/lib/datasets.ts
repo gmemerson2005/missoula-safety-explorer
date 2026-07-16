@@ -37,6 +37,13 @@ export interface TableField {
    * table can reveal them on demand.
    */
   hidden?: boolean;
+  /**
+   * Restricted fields are STRIPPED server-side from every non-analyst
+   * payload (see src/lib/redact.ts) and render as a lock treatment. All of
+   * this county data is actually public — the flags exist to demonstrate
+   * field-level access control on real columns.
+   */
+  restricted?: boolean;
 }
 
 export interface DatasetConfig {
@@ -102,7 +109,7 @@ export const DATASETS: DatasetConfig[] = [
       { key: "name", label: "District" },
       { key: "code", label: "District code" },
       { key: "description", label: "Description" },
-      { key: "contact", label: "Contact" },
+      { key: "contact", label: "Contact", restricted: true },
       { key: "objectid", label: "Object ID", hidden: true },
       { key: "globalid", label: "Global ID", hidden: true },
       { key: "shape__Area", label: "Shape area", hidden: true },
@@ -131,7 +138,7 @@ export const DATASETS: DatasetConfig[] = [
     nameField: "name",
     tableFields: [
       { key: "name", label: "Location" },
-      { key: "address", label: "Street address" },
+      { key: "address", label: "Street address", restricted: true },
       { key: "city", label: "City" },
       { key: "state", label: "State" },
       { key: "zipcode", label: "ZIP code" },
@@ -166,7 +173,7 @@ export const DATASETS: DatasetConfig[] = [
     nameField: "femades",
     tableFields: [
       { key: "femades", label: "FEMA zone" },
-      { key: "acres", label: "Mapped acres" },
+      { key: "acres", label: "Mapped acres", restricted: true },
       { key: "OBJECTID", label: "Object ID", hidden: true },
       { key: "globalid", label: "Global ID", hidden: true },
       { key: "Shape__Area", label: "Shape area", hidden: true },

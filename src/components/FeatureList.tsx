@@ -4,11 +4,19 @@
 // keyboard and screen-reader users. It receives the same server-fetched
 // layers the map got — no extra request, no extra exposure.
 
+import Link from "next/link";
+import { slugify } from "@lib/geo";
 import type { MapLayerData } from "@components/map/SafetyMap";
 
 const MAX_ENTRIES_PER_LAYER = 60;
 
-function namesFor(layer: MapLayerData): string[] {
+interface NamedEntry {
+  label: string;
+  /** District drill-down target (fire layer only). */
+  href?: string;
+}
+
+function namesFor(layer: MapLayerData): NamedEntry[] {
   const counts = new Map<string, number>();
   for (const feature of layer.geojson.features) {
     const raw = feature.properties?.[layer.nameField];
@@ -16,12 +24,21 @@ function namesFor(layer: MapLayerData): string[] {
       raw === null || raw === undefined || raw === "" ? "(unnamed)" : String(raw);
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
-  const entries = [...counts.entries()]
+  const entries: NamedEntry[] = [...counts.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], "en"))
-    .map(([name, count]) => (count > 1 ? `${name} (×${count})` : name));
+    .map(([name, count]) => ({
+      label: count > 1 ? `${name} (×${count})` : name,
+      href:
+        layer.id === "fireDistricts" && name !== "(unnamed)"
+          ? `/district/${slugify(name)}`
+          : undefined,
+    }));
   if (entries.length > MAX_ENTRIES_PER_LAYER) {
     const extra = entries.length - MAX_ENTRIES_PER_LAYER;
-    return [...entries.slice(0, MAX_ENTRIES_PER_LAYER), `…and ${extra} more`];
+    return [
+      ...entries.slice(0, MAX_ENTRIES_PER_LAYER),
+      { label: `…and ${extra} more` },
+    ];
   }
   return entries;
 }
@@ -40,8 +57,19 @@ export default function FeatureList({ layers }: { layers: MapLayerData[] }) {
               {layer.title}
             </h3>
             <ul className="mt-1 space-y-0.5 font-mono text-xs text-foreground/90">
-              {namesFor(layer).map((name) => (
-                <li key={name}>{name}</li>
+              {namesFor(layer).map((entry) => (
+                <li key={entry.label}>
+                  {entry.href ? (
+                    <Link
+                      href={entry.href}
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      {entry.label}
+                    </Link>
+                  ) : (
+                    entry.label
+                  )}
+                </li>
               ))}
             </ul>
           </div>

@@ -7,12 +7,16 @@
 // pass down as props.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { DATASETS, getDataset, type DatasetConfig } from "@lib/datasets";
 import { fetchLayerTable, type FeatureProperties, type Result } from "@lib/arcgis";
-import { hasAnalystSession } from "@lib/auth";
-import { geometryAreaSqMi } from "@lib/geo";
+import { ANALYST_COOKIE, hasAnalystSession } from "@lib/auth";
+import { recordAccess } from "@lib/auditLog";
+import { geometryAreaSqMi, slugify } from "@lib/geo";
 import { buildMapLayers } from "@lib/mapData";
+import AuditPanel from "@components/AuditPanel";
 import DataTable from "@components/DataTable";
 import FeatureList from "@components/FeatureList";
 import MapPanel from "@components/map/MapPanel";
@@ -31,10 +35,11 @@ function deriveColumns(
   rows: FeatureProperties[]
 ): { visible: { key: string; label: string }[]; internal: { key: string; label: string }[] } {
   const fieldFor = new Map(dataset.tableFields.map((f) => [f.key, f]));
-  const keys =
+  const keys = (
     rows.length > 0
       ? Object.keys(rows[0])
-      : dataset.tableFields.map((f) => f.key);
+      : dataset.tableFields.map((f) => f.key)
+  ).filter((key) => !key.startsWith("__")); // app-added row metadata (__href)
   const visible: { key: string; label: string }[] = [];
   const internal: { key: string; label: string }[] = [];
   for (const key of keys) {
@@ -91,7 +96,7 @@ function BreakdownTable({
   label: string;
   unitLabel: string;
   sumLabel?: string;
-  data: { group: string; count: number; sum: number }[];
+  data: { group: string; count: number; sum: number; href?: string }[];
 }) {
   return (
     <div className="border border-line bg-surface p-4">
@@ -117,7 +122,18 @@ function BreakdownTable({
         <tbody>
           {data.map((entry) => (
             <tr key={entry.group} className="border-t border-line/60">
-              <td className="py-1 pr-2">{entry.group}</td>
+              <td className="py-1 pr-2">
+                {entry.href ? (
+                  <Link
+                    href={entry.href}
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    {entry.group}
+                  </Link>
+                ) : (
+                  entry.group
+                )}
+              </td>
               <td className="py-1 pr-2 text-right tabular-nums">
                 {entry.count.toLocaleString("en-US")}
               </td>
@@ -140,6 +156,10 @@ export default async function AnalystPage() {
   if (!(await hasAnalystSession())) {
     redirect("/login?from=%2Fanalyst");
   }
+
+  // Audit: an analyst session is about to be served the full detail tables.
+  const cookieStore = await cookies();
+  recordAccess("/analyst", cookieStore.get(ANALYST_COOKIE)?.value ?? "");
 
   const [tableResults, mapData] = await Promise.all([
     Promise.all(DATASETS.map((dataset) => fetchLayerTable(dataset))),
@@ -201,11 +221,18 @@ export default async function AnalystPage() {
             label="Fire district coverage"
             unitLabel="≈ sq mi"
             data={fireLayer.geojson.features
-              .map((feature) => ({
-                group: String(feature.properties?.name ?? "(unnamed)"),
-                count: Math.round(geometryAreaSqMi(feature.geometry)),
-                sum: 0,
-              }))
+              .map((feature) => {
+                const name = String(feature.properties?.name ?? "(unnamed)");
+                return {
+                  group: name,
+                  count: Math.round(geometryAreaSqMi(feature.geometry)),
+                  sum: 0,
+                  href:
+                    name === "(unnamed)"
+                      ? undefined
+                      : `/district/${slugify(name)}`,
+                };
+              })
               .sort((a, b) => b.count - a.count)}
           />
         ) : (
@@ -233,6 +260,7 @@ export default async function AnalystPage() {
         ) : (
           <OfflinePanel title="Polling breakdown" error={polling.error} />
         )}
+        <AuditPanel />
         <p className="font-mono text-[11px] uppercase tracking-widest text-faint md:col-span-2 xl:col-span-3">
           District areas are computed from generalized boundaries — treat as
           approximate.
@@ -241,7 +269,21 @@ export default async function AnalystPage() {
 
       {/* Full data tables */}
       {DATASETS.map((dataset, i) => {
-        const result = tableResults[i];
+        let result = tableResults[i];
+        // Fire district rows deep-link to their drill-down pages via a row
+        // metadata key (double underscore = app-added, skipped by columns).
+        if (dataset.id === "fireDistricts" && result.ok) {
+          result = {
+            ok: true,
+            value: result.value.map((row) => ({
+              ...row,
+              __href:
+                typeof row.name === "string" && row.name
+                  ? `/district/${slugify(row.name)}`
+                  : null,
+            })),
+          };
+        }
         return (
           <section key={dataset.id} aria-label={dataset.displayName} className="mt-10">
             <div className="flex flex-wrap items-baseline gap-3">
@@ -267,6 +309,7 @@ export default async function AnalystPage() {
                 <DataTable
                   title={dataset.displayName}
                   {...deriveColumns(dataset, result.value)}
+                  hrefColumn={dataset.id === "fireDistricts" ? "name" : undefined}
                   rows={result.value}
                 />
               ) : (

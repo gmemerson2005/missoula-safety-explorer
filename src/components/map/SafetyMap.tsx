@@ -15,6 +15,7 @@ import { GeoJSON, MapContainer, Pane, TileLayer, useMap } from "react-leaflet";
 import type { Feature } from "geojson";
 import type { LayerGeoJSON } from "@lib/arcgis";
 import { INK, LAYER_COLORS } from "@lib/layerColors";
+import { slugify } from "@lib/geo";
 import LayerToggle from "./LayerToggle";
 
 export interface MapLayerData {
@@ -32,6 +33,11 @@ export interface MapLayerData {
 export interface SafetyMapProps {
   layers: MapLayerData[];
   role: "public" | "analyst";
+  /** Zoom to the layers' combined bounds instead of the county default —
+      used by the district drill-down mini map. */
+  fitToLayers?: boolean;
+  /** Hide the layer toggle panel (e.g. single-layer mini maps). */
+  showControls?: boolean;
 }
 
 // Missoula County, Montana.
@@ -100,11 +106,19 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
       : String(rawName)
   );
   const color = LAYER_COLORS[layer.id as keyof typeof LAYER_COLORS];
+  // Fire district popups deep-link to the district drill-down page for both
+  // roles (the page itself redacts per role). slugify output is [a-z0-9-]
+  // only, so it is safe inside the href attribute.
+  const districtLink =
+    layer.id === "fireDistricts" && rawName
+      ? `<div style="margin-top:6px"><a class="msx-popup-link" ` +
+        `href="/district/${slugify(String(rawName))}">District details →</a></div>`
+      : "";
   const head =
     `<div class="msx-popup-kicker" style="color:${color?.text ?? "var(--muted)"}">` +
     `${escapeHtml(layer.title)}</div>` +
     `<div class="msx-popup-name">${name}</div>`;
-  if (role === "public") return head;
+  if (role === "public") return head + districtLink;
   const labelFor = new Map(layer.fields.map((f) => [f.key, f.label]));
   // Internal bookkeeping fields (OBJECTID, Shape__Area, edit tracking…) are
   // flagged hidden in the per-layer field map — popups skip them.
@@ -124,7 +138,24 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
       );
     })
     .join("");
-  return `${head}<table class="msx-popup-table"><tbody>${rows}</tbody></table>`;
+  return `${head}<table class="msx-popup-table"><tbody>${rows}</tbody></table>${districtLink}`;
+}
+
+/** Fits the view to the combined bounds of all layers, once, on mount. */
+function FitToLayers({ layers }: { layers: MapLayerData[] }) {
+  const map = useMap();
+  useEffect(() => {
+    let bounds: L.LatLngBounds | null = null;
+    for (const layer of layers) {
+      const layerBounds = L.geoJSON(layer.geojson).getBounds();
+      if (!layerBounds.isValid()) continue;
+      bounds = bounds ? bounds.extend(layerBounds) : layerBounds;
+    }
+    if (bounds) map.fitBounds(bounds, { padding: [24, 24], animate: false });
+    // Mount-only: the layers prop is server-fetched and never changes in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map]);
+  return null;
 }
 
 /**
@@ -142,7 +173,12 @@ function PaneVisibility({ visible }: { visible: Record<string, boolean> }) {
   return null;
 }
 
-export default function SafetyMap({ layers, role }: SafetyMapProps) {
+export default function SafetyMap({
+  layers,
+  role,
+  fitToLayers = false,
+  showControls = true,
+}: SafetyMapProps) {
   // Leaflet's pan/zoom easing is JS-driven, so the CSS reduced-motion reset
   // in globals.css can't reach it — honor the OS setting via map options.
   // This file only runs in the browser (ssr:false), so matchMedia exists.
@@ -181,6 +217,7 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
           className="map-tiles"
         />
         <PaneVisibility visible={visible} />
+        {fitToLayers ? <FitToLayers layers={layers} /> : null}
         {layers.map((layer) => {
           const paint = LAYER_PAINT[layer.id] ?? {
             color: LAYER_COLORS.fireDistricts.mark,
@@ -260,6 +297,7 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
       {/* Layer control panel — doubles as the legend: each row is labeled
           and wears its layer's signature color, so identity is never color
           alone. Toggles fade panes via PaneVisibility above. */}
+      {showControls ? (
       <div className="absolute right-2 top-2 z-[500] w-64 border border-line bg-background/95 px-3 py-2 backdrop-blur">
         <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-faint">
           Layers
@@ -285,6 +323,7 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
           ))}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

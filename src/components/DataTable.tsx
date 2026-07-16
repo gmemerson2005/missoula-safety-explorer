@@ -6,6 +6,9 @@
 // proxy before this component's props are ever rendered into a payload.
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { RESTRICTED_SENTINEL } from "@lib/redact";
+import RedactedValue from "@components/RedactedValue";
 
 type CellValue = string | number | boolean | null;
 
@@ -21,6 +24,8 @@ interface DataTableProps {
   visible: DataTableColumn[];
   /** Internal bookkeeping columns, hidden until the user opts in. */
   internal?: DataTableColumn[];
+  /** Column whose cells link to `row.__href` (e.g. district drill-downs). */
+  hrefColumn?: string;
   rows: Record<string, CellValue>[];
 }
 
@@ -52,7 +57,13 @@ function formatCell(key: string, value: CellValue): string {
   return String(value);
 }
 
-export default function DataTable({ title, visible, internal = [], rows }: DataTableProps) {
+export default function DataTable({
+  title,
+  visible,
+  internal = [],
+  hrefColumn,
+  rows,
+}: DataTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -186,11 +197,35 @@ export default function DataTable({ title, visible, internal = [], rows }: DataT
                 key={i}
                 className="border-b border-line/60 last:border-b-0 hover:bg-surface-2"
               >
-                {columns.map((col) => (
-                  <td key={col.key} className="px-3 py-1.5 align-top text-foreground/90">
-                    {formatCell(col.key, row[col.key])}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const value = row[col.key];
+                  // The server replaced restricted values with a sentinel
+                  // before these rows ever reached the client; render the
+                  // lock treatment in its place (see src/lib/redact.ts).
+                  let cell: React.ReactNode;
+                  if (value === RESTRICTED_SENTINEL) {
+                    cell = <RedactedValue />;
+                  } else if (
+                    col.key === hrefColumn &&
+                    typeof row.__href === "string"
+                  ) {
+                    cell = (
+                      <Link
+                        href={row.__href}
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        {formatCell(col.key, value)}
+                      </Link>
+                    );
+                  } else {
+                    cell = formatCell(col.key, value);
+                  }
+                  return (
+                    <td key={col.key} className="px-3 py-1.5 align-top text-foreground/90">
+                      {cell}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
             {visibleRows.length === 0 ? (
