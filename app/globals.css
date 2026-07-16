@@ -125,30 +125,38 @@ body {
   }
 }
 
-.leaflet-container {
+/*
+ * SPECIFICITY NOTE: leaflet.css is imported by the lazily-loaded map chunk,
+ * so it lands in the cascade AFTER this file. Every selector Leaflet also
+ * defines (popup wrapper/tip/content, close button, control bar) must beat
+ * it on specificity, not on order — hence the doubled/prefixed selectors.
+ * Leaflet's defaults are white-on-light; an order tie regresses the popups
+ * to light-gray-text-on-white.
+ */
+.leaflet-container.leaflet-container {
   font-family: var(--font-public-sans), system-ui, sans-serif;
 }
 
-.leaflet-popup-content-wrapper {
+.leaflet-container .leaflet-popup-content-wrapper {
   background: var(--surface-2);
   color: var(--foreground);
   border: 1px solid var(--line);
   border-radius: 2px;
   box-shadow: 0 4px 16px rgba(4, 8, 14, 0.6);
 }
-.leaflet-popup-tip {
+.leaflet-container .leaflet-popup-tip {
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
-.leaflet-popup-content {
+.leaflet-container .leaflet-popup-content {
   margin: 10px 12px;
   font-size: 13px;
   line-height: 1.5;
 }
-.leaflet-container a.leaflet-popup-close-button {
+.leaflet-container .leaflet-popup a.leaflet-popup-close-button {
   color: var(--muted);
 }
-.leaflet-container a.leaflet-popup-close-button:hover {
+.leaflet-container .leaflet-popup a.leaflet-popup-close-button:hover {
   color: var(--foreground);
 }
 
@@ -194,24 +202,24 @@ body {
   letter-spacing: 0.05em;
 }
 
-.leaflet-bar a {
+.leaflet-container .leaflet-bar a {
   background: var(--surface-2);
   color: var(--foreground);
   border-bottom: 1px solid var(--line);
 }
-.leaflet-bar a:hover,
-.leaflet-bar a:focus {
+.leaflet-container .leaflet-bar a:hover,
+.leaflet-container .leaflet-bar a:focus {
   background: var(--surface);
   color: var(--foreground);
 }
 
-.leaflet-control-attribution {
+.leaflet-container .leaflet-control-attribution {
   background: rgba(12, 17, 24, 0.85) !important;
   color: var(--faint);
   font-family: var(--font-plex-mono), monospace;
   font-size: 9px;
 }
-.leaflet-control-attribution a {
+.leaflet-container .leaflet-control-attribution a {
   color: var(--muted);
 }
 
