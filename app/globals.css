@@ -109,7 +109,15 @@ body {
 }
 .msx-layer-pane.msx-pane-hidden {
   opacity: 0;
-  pointer-events: none;
+}
+/* Leaflet gives interactive paths `pointer-events: auto` directly, so the
+   descendant selector (with !important) is required — pointer-events on the
+   pane div alone would NOT stop clicks on the paths inside it, and a hidden
+   layer would keep swallowing clicks meant for layers underneath. (Only the
+   pane itself gets opacity: 0, so the fade transition still runs.) */
+.msx-layer-pane.msx-pane-hidden,
+.msx-layer-pane.msx-pane-hidden * {
+  pointer-events: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .msx-layer-pane {

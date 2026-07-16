@@ -8,18 +8,22 @@
 // the props when the visitor is public, so there is nothing hidden in this
 // payload to "unhide".
 
+import { useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
+import { GeoJSON, MapContainer, Pane, TileLayer, useMap } from "react-leaflet";
 import type { Feature } from "geojson";
 import type { LayerGeoJSON } from "@lib/arcgis";
 import { INK, LAYER_COLORS } from "@lib/layerColors";
+import LayerToggle from "./LayerToggle";
 
 export interface MapLayerData {
   id: string;
   title: string;
   kind: "polygon" | "point";
   nameField: string;
+  /** One-sentence description, shown as toggle helper text. */
+  description?: string;
   /** Attribute keys+labels shown in analyst popups. */
   fields: { key: string; label: string }[];
   geojson: LayerGeoJSON;
@@ -33,12 +37,33 @@ export interface SafetyMapProps {
 // Missoula County, Montana.
 const CENTER: [number, number] = [46.9, -113.9];
 
-// One paint scheme per layer identity, from the shared signature palette
-// (src/lib/layerColors.ts) — the same colors the toggles, stat cards, and
-// charts wear.
+/**
+ * THE CLICK-THROUGH FIX. Each data layer renders into its own Leaflet pane
+ * with an explicit z-index (Leaflet's default overlayPane is 400; popups sit
+ * at 700). The DOM stacking order then decides which feature receives a
+ * click on overlapping ground: flood sits above fire, points above both, so
+ * a click always opens the popup of the topmost VISIBLE layer. Hiding a pane
+ * adds .msx-pane-hidden (opacity 0 + pointer-events: none on the pane AND
+ * its descendants — see globals.css), which both fades it out and lets
+ * clicks fall through to the layers underneath.
+ */
+const PANE_Z: Record<string, number> = {
+  fireDistricts: 401,
+  floodplain: 402,
+  pollingLocations: 403,
+};
+
+function paneName(layerId: string): string {
+  return `msx-${layerId}`;
+}
+
+// One paint scheme per layer identity, from the shared signature palette —
+// the same colors the toggles, stat cards, and charts wear. Fills are
+// semi-transparent (0.35–0.5) so overlapping zones stay readable.
 const LAYER_PAINT: Record<string, { color: string; fillOpacity: number }> = {
-  fireDistricts: { color: LAYER_COLORS.fireDistricts.mark, fillOpacity: 0.1 },
-  floodplain: { color: LAYER_COLORS.floodplain.mark, fillOpacity: 0.25 },
+  fireDistricts: { color: LAYER_COLORS.fireDistricts.mark, fillOpacity: 0.4 },
+  floodplain: { color: LAYER_COLORS.floodplain.mark, fillOpacity: 0.4 },
+  pollingLocations: { color: LAYER_COLORS.pollingLocations.mark, fillOpacity: 1 },
 };
 
 function escapeHtml(value: string): string {
@@ -74,8 +99,10 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
       ? "(unnamed)"
       : String(rawName)
   );
+  const color = LAYER_COLORS[layer.id as keyof typeof LAYER_COLORS];
   const head =
-    `<div class="msx-popup-kicker">${escapeHtml(layer.title)}</div>` +
+    `<div class="msx-popup-kicker" style="color:${color?.text ?? "var(--muted)"}">` +
+    `${escapeHtml(layer.title)}</div>` +
     `<div class="msx-popup-name">${name}</div>`;
   if (role === "public") return head;
   const labelFor = new Map(layer.fields.map((f) => [f.key, f.label]));
@@ -95,6 +122,21 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
   return `${head}<table class="msx-popup-table"><tbody>${rows}</tbody></table>`;
 }
 
+/**
+ * Applies toggle state to the pane elements. Panes stay mounted (no
+ * re-fetch, no re-draw); visibility is a CSS class so the 300ms opacity
+ * transition in globals.css makes layers fade instead of pop.
+ */
+function PaneVisibility({ visible }: { visible: Record<string, boolean> }) {
+  const map = useMap();
+  useEffect(() => {
+    for (const [id, on] of Object.entries(visible)) {
+      map.getPane(paneName(id))?.classList.toggle("msx-pane-hidden", !on);
+    }
+  }, [map, visible]);
+  return null;
+}
+
 export default function SafetyMap({ layers, role }: SafetyMapProps) {
   // Leaflet's pan/zoom easing is JS-driven, so the CSS reduced-motion reset
   // in globals.css can't reach it — honor the OS setting via map options.
@@ -103,6 +145,11 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Layer visibility — all on by default.
+  const [visible, setVisible] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(layers.map((layer) => [layer.id, true]))
+  );
+
   return (
     // `isolate` caps Leaflet's internal z-indexes (controls sit at 1000)
     // inside this box so they can never paint over the sticky site header.
@@ -110,7 +157,11 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
       <MapContainer
         center={CENTER}
         zoom={9}
-        scrollWheelZoom={false}
+        // Full zoom surface: wheel, trackpad pinch (touchZoom), double-click,
+        // plus the default +/- control buttons as fallback.
+        scrollWheelZoom
+        touchZoom
+        doubleClickZoom
         zoomAnimation={!reduceMotion}
         fadeAnimation={!reduceMotion}
         markerZoomAnimation={!reduceMotion}
@@ -124,87 +175,110 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           className="map-tiles"
         />
+        <PaneVisibility visible={visible} />
         {layers.map((layer) => {
           const paint = LAYER_PAINT[layer.id] ?? {
             color: LAYER_COLORS.fireDistricts.mark,
-            fillOpacity: 0.1,
+            fillOpacity: 0.4,
           };
           return (
-            <GeoJSON
-              // react-leaflet's GeoJSON never re-reads the data prop after
-              // mount, so the key carries everything that changes what was
-              // drawn: the role (public vs analyst attributes/popups) —
-              // without it, toggling roles client-side would keep stale
-              // popups bound.
-              key={`${layer.id}-${role}`}
-              data={layer.geojson}
-              style={(feature) => {
-                // "Styled by district": fire polygons get a deterministic
-                // per-district fill density (same hue — the accent stays
-                // the accent) so neighboring districts read as distinct.
-                let fillOpacity = paint.fillOpacity;
-                if (layer.id === "fireDistricts") {
-                  const name = String(
-                    feature?.properties?.[layer.nameField] ?? ""
-                  );
-                  fillOpacity = 0.06 + (hashString(name) % 8) * 0.035;
+            <Pane
+              key={layer.id}
+              name={paneName(layer.id)}
+              className="msx-layer-pane"
+              style={{ zIndex: PANE_Z[layer.id] ?? 405 }}
+            >
+              <GeoJSON
+                // react-leaflet's GeoJSON never re-reads the data prop after
+                // mount, so the key carries everything that changes what was
+                // drawn: the role (public vs analyst attributes/popups) —
+                // without it, toggling roles client-side would keep stale
+                // popups bound.
+                key={`${layer.id}-${role}`}
+                data={layer.geojson}
+                style={(feature) => {
+                  // Fire districts get a deterministic per-district fill
+                  // density within the readable 0.35–0.5 window so
+                  // neighboring districts stay distinguishable.
+                  let fillOpacity = paint.fillOpacity;
+                  if (layer.id === "fireDistricts") {
+                    const name = String(
+                      feature?.properties?.[layer.nameField] ?? ""
+                    );
+                    fillOpacity = 0.35 + (hashString(name) % 4) * 0.05;
+                  }
+                  return {
+                    color: paint.color,
+                    weight: 1.5,
+                    fillColor: paint.color,
+                    fillOpacity,
+                  };
+                }}
+                pointToLayer={(_feature, latlng) =>
+                  // circleMarker instead of the default icon Marker: no image
+                  // assets to bundle, and it takes the theme colors directly.
+                  // The pane must be passed explicitly — Leaflet hands a
+                  // custom pointToLayer result none of the parent's options.
+                  L.circleMarker(latlng, {
+                    pane: paneName(layer.id),
+                    radius: 6,
+                    color: INK,
+                    weight: 2,
+                    fillColor: LAYER_COLORS.pollingLocations.mark,
+                    fillOpacity: 1,
+                  })
                 }
-                return {
-                  color: paint.color,
-                  weight: 1.5,
-                  fillColor: paint.color,
-                  fillOpacity,
-                };
-              }}
-              pointToLayer={(_feature, latlng) =>
-                // circleMarker instead of the default icon Marker: no image
-                // assets to bundle, and it takes the theme colors directly.
-                L.circleMarker(latlng, {
-                  radius: 6,
-                  color: INK,
-                  weight: 2,
-                  fillColor: LAYER_COLORS.pollingLocations.mark,
-                  fillOpacity: 1,
-                })
-              }
-              onEachFeature={(feature, leafletLayer) => {
-                leafletLayer.bindPopup(popupHtml(layer, feature, role), {
-                  maxWidth: 320,
-                });
-              }}
-            />
+                onEachFeature={(feature, leafletLayer) => {
+                  leafletLayer.bindPopup(popupHtml(layer, feature, role), {
+                    maxWidth: 320,
+                  });
+                  // Hover: lift the feature above its pane siblings and
+                  // thicken its outline so overlapping shapes read clearly.
+                  leafletLayer.on("mouseover", (e) => {
+                    const target = e.target as L.Path;
+                    target.bringToFront?.();
+                    target.setStyle?.({ weight: 3 });
+                  });
+                  leafletLayer.on("mouseout", (e) => {
+                    const target = e.target as L.Path;
+                    target.setStyle?.({
+                      weight: layer.kind === "point" ? 2 : 1.5,
+                    });
+                  });
+                }}
+              />
+            </Pane>
           );
         })}
       </MapContainer>
 
-      {/* Legend — identity is never color alone; each swatch is labeled. */}
-      <div className="absolute bottom-6 left-2 z-[500] border border-line bg-background/90 px-3 py-2">
-        <ul className="space-y-1 font-mono text-[10px] uppercase tracking-widest text-muted">
-          {layers.map((layer) => {
-            const paint = LAYER_PAINT[layer.id];
-            return (
-              <li key={layer.id} className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={
-                    layer.kind === "point"
-                      ? "inline-block h-2.5 w-2.5 rounded-full"
-                      : "inline-block h-2.5 w-2.5 border"
-                  }
-                  style={
-                    layer.kind === "point"
-                      ? { background: LAYER_COLORS.pollingLocations.mark }
-                      : {
-                          borderColor: paint?.color ?? LAYER_COLORS.fireDistricts.mark,
-                          background: `${paint?.color ?? LAYER_COLORS.fireDistricts.mark}33`,
-                        }
-                  }
-                />
-                {layer.title}
-              </li>
-            );
-          })}
-        </ul>
+      {/* Layer control panel — doubles as the legend: each row is labeled
+          and wears its layer's signature color, so identity is never color
+          alone. Toggles fade panes via PaneVisibility above. */}
+      <div className="absolute right-2 top-2 z-[500] w-64 border border-line bg-background/95 px-3 py-2 backdrop-blur">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-faint">
+          Layers
+        </p>
+        <div className="divide-y divide-line/60">
+          {layers.map((layer) => (
+            <LayerToggle
+              key={layer.id}
+              label={layer.title}
+              count={layer.geojson.features.length}
+              color={
+                LAYER_COLORS[layer.id as keyof typeof LAYER_COLORS] ?? {
+                  mark: "#948e86",
+                  text: "#a9a29a",
+                }
+              }
+              checked={visible[layer.id] ?? true}
+              onChange={(next) =>
+                setVisible((prev) => ({ ...prev, [layer.id]: next }))
+              }
+              description={layer.description}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
