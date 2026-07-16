@@ -17,6 +17,7 @@ import { recordAccess } from "@lib/auditLog";
 import { geometryAreaSqMi, slugify } from "@lib/geo";
 import { buildMapLayers } from "@lib/mapData";
 import AuditPanel from "@components/AuditPanel";
+import ChatPanel from "@components/chat/ChatPanel";
 import DataTable from "@components/DataTable";
 import FeatureList from "@components/FeatureList";
 import MapPanel from "@components/map/MapPanel";
@@ -319,6 +320,10 @@ export default async function AnalystPage() {
           </section>
         );
       })}
+
+      {/* Local AI assistant — analyst context (the route handler re-checks
+          the session cookie server-side). */}
+      <ChatPanel role="analyst" />
     </main>
   );
 }

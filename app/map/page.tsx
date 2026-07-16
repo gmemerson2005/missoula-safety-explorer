@@ -20,6 +20,7 @@ import StatCard from "@components/StatCard";
 import MapPanel from "@components/map/MapPanel";
 import FeatureList from "@components/FeatureList";
 import DistrictBarChart, { type BarDatum } from "@components/charts/DistrictBarChart";
+import ChatPanel from "@components/chat/ChatPanel";
 
 export const metadata: Metadata = { title: "Map" };
 
@@ -248,6 +249,10 @@ export default async function MapPage({
           .
         </p>
       )}
+
+      {/* Local AI assistant — the route handler re-derives the role from the
+          session cookie; this prop only labels the UI. */}
+      <ChatPanel role={role} />
     </main>
   );
 }

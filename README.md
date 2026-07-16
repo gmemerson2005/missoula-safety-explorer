@@ -28,6 +28,26 @@ The server components enforce the same boundary a second time: pages re-check th
 
 **Demo passphrase:** `kestrel` — switch the role dropdown to *Analyst* (or visit `/analyst`), sign in, and the strip flips to orange `ANALYST VIEW`. Sign out from the header.
 
+## AI assistant (local Ollama)
+
+The map and analyst pages include an **"Ask the data"** chat drawer powered by a model running entirely on your machine through [Ollama](https://ollama.com). No API keys, no cloud calls — the Next.js route handler at [`app/api/chat/route.ts`](app/api/chat/route.ts) streams from `http://localhost:11434`.
+
+**Two-command setup** (after installing the app itself):
+
+```bash
+# 1. install Ollama (https://ollama.com/download), then:
+ollama pull llama3.2:3b
+# 2. Ollama serves automatically; just run the app and open the chat drawer
+```
+
+Set `OLLAMA_MODEL` to use a different model (defaults to `llama3.2:3b`); `OLLAMA_URL` overrides the daemon address.
+
+**Why the model isn't in git:** model weights are multi-gigabyte binaries that don't belong in a source repository — they're versioned, distributed, and deduplicated by Ollama's own registry. Anyone cloning the repo pulls the exact model with one command instead of bloating every clone forever.
+
+**Role-aware context (the interesting part):** `/api/chat` reads the `analyst_session` cookie *server-side* and builds the model's system prompt from cached dataset summaries accordingly ([`src/lib/chatContext.ts`](src/lib/chatContext.ts)). For public visitors, restricted fields (district contacts, polling street addresses, flood acreage) are excluded from the context entirely and the prompt says that data requires analyst sign-in — the model **cannot leak values it never received**. Access is enforced at the data boundary; the model is never trusted to self-censor. Context is aggregated (counts, per-district areas, per-zone rollups) rather than raw GeoJSON, so it stays small enough for a 3B model.
+
+**Graceful degradation:** the chat UI probes `/api/chat/health` (1.5 s timeout). If Ollama isn't reachable — like on the deployed site — the drawer shows a friendly "runs in the local demo" card instead of hanging.
+
 ## Run it locally
 
 ```bash
