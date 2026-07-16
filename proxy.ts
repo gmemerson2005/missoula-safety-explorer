@@ -29,6 +29,14 @@ import { ANALYST_COOKIE, ANALYST_COOKIE_VALUE } from "./src/lib/auth";
 export function proxy(request: NextRequest) {
   const { pathname, searchParams, search } = request.nextUrl;
 
+  // Legacy URLs: before the restructure the map tool lived at "/" and took
+  // ?view=. The tool now lives at /map, so old bookmarks like /?view=analyst
+  // redirect there (and then fall through the analyst gate below as /map).
+  if (pathname === "/" && searchParams.has("view")) {
+    const mapUrl = new URL(`/map${search}`, request.url);
+    return NextResponse.redirect(mapUrl, 308);
+  }
+
   // Analyst surfaces: the /analyst routes and any page asked to render its
   // analyst variant via ?view=analyst.
   const wantsAnalyst =

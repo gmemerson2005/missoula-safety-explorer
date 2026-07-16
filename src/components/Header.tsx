@@ -1,20 +1,11 @@
-// Server Component (no directive) — static chrome rendered once on the
-// server. The two interactive/URL-aware pieces (RoleToggle, RoleStrip) are
-// small client islands; both call useSearchParams, so each sits behind a
-// <Suspense> boundary with a same-size fallback to avoid layout shift.
+// Server Component (no directive) — the persistent top nav. Renders on the
+// server with the session state; the one URL-aware piece (active link
+// highlighting) is the small NavLinks client island. The analyst badge is a
+// label, not the lock — gating happens in proxy.ts and server components.
 
 import Link from "next/link";
-import { Suspense } from "react";
-import RoleStrip from "./RoleStrip";
-import RoleToggle from "./RoleToggle";
-
-function StripFallback() {
-  return (
-    <div className="border-b border-line bg-surface px-4 py-1 font-mono text-[11px] uppercase tracking-[0.25em] text-faint">
-      Resolving view…
-    </div>
-  );
-}
+import NavLinks from "./NavLinks";
+import { TIER_COLOR } from "@lib/layerColors";
 
 export default function Header({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
@@ -22,45 +13,41 @@ export default function Header({ isAuthenticated }: { isAuthenticated: boolean }
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-line bg-background/95 px-4 py-3 backdrop-blur">
         <Link
           href="/"
-          className="font-mono text-sm font-semibold uppercase tracking-[0.2em] text-foreground hover:text-foreground"
+          className="font-display text-lg font-bold uppercase tracking-wide text-foreground hover:text-muted"
         >
-          <span className="text-tier-text">▲</span> Missoula Public Safety Explorer
+          Missoula Public Safety Explorer
         </Link>
-        <nav
-          aria-label="Primary"
-          className="flex items-center gap-4 font-mono text-xs uppercase tracking-widest"
-        >
-          <Link href="/" className="text-muted hover:text-foreground">
-            Map
-          </Link>
-          <Link href="/analyst" className="text-muted hover:text-foreground">
-            Analyst
-          </Link>
-          <Link href="/about" className="text-muted hover:text-foreground">
-            About
-          </Link>
-        </nav>
-        <div className="ml-auto flex items-center gap-4">
-          <Suspense fallback={null}>
-            <RoleToggle />
-          </Suspense>
+        <NavLinks />
+        <div className="ml-auto flex items-center gap-3">
           {isAuthenticated ? (
-            // Plain form POST — sign-out works without client JS. The route
-            // handler deletes the httpOnly session cookie server-side.
-            <form action="/api/logout" method="POST">
-              <button
-                type="submit"
-                className="border border-line px-3 py-1 font-mono text-xs uppercase tracking-widest text-muted hover:border-foreground hover:text-foreground"
+            <>
+              <span
+                className="border px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.2em]"
+                style={{ borderColor: TIER_COLOR.mark, color: TIER_COLOR.text }}
               >
-                Sign out
-              </button>
-            </form>
-          ) : null}
+                ● Analyst session
+              </span>
+              {/* Plain form POST — sign-out works without client JS. The route
+                  handler deletes the httpOnly session cookie server-side. */}
+              <form action="/api/logout" method="POST">
+                <button
+                  type="submit"
+                  className="border border-line px-3 py-1 font-mono text-xs uppercase tracking-widest text-muted transition-colors duration-150 hover:border-foreground hover:text-foreground active:scale-[0.98]"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="border border-line px-3 py-1 font-mono text-xs uppercase tracking-widest text-muted transition-colors duration-150 hover:border-foreground hover:text-foreground"
+            >
+              Analyst sign in
+            </Link>
+          )}
         </div>
       </div>
-      <Suspense fallback={<StripFallback />}>
-        <RoleStrip />
-      </Suspense>
     </header>
   );
 }

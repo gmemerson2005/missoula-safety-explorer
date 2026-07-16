@@ -3,7 +3,7 @@
 // `unstable_retry` recovery prop, which re-fetches server data and
 // re-renders the segment (unlike the older `reset`).
 
-export default function LandingError({
+export default function HomeError({
   error,
   unstable_retry,
 }: {
@@ -29,7 +29,7 @@ export default function LandingError({
       <button
         type="button"
         onClick={() => unstable_retry()}
-        className="mt-6 border border-foreground px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors duration-150 hover:bg-foreground hover:text-background active:scale-[0.98]"
+        className="mt-6 border border-tier px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-tier-text hover:border-foreground hover:text-foreground"
       >
         Retry
       </button>
