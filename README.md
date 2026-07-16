@@ -4,11 +4,11 @@ Every fire district, flood zone, and polling place in Missoula County — on one
 
 > **Screenshots**
 >
-> ![Landing page](docs/screenshots/landing.png) *(placeholder)*
-> ![Map with layer toggles and chart](docs/screenshots/map-public.png) *(placeholder)*
-> ![Analyst console with audit panel](docs/screenshots/analyst-console.png) *(placeholder)*
-> ![District drill-down with redacted field](docs/screenshots/district-public.png) *(placeholder)*
-> ![AI assistant drawer](docs/screenshots/chat.png) *(placeholder)*
+> [Landing page] ![alt text](image.png) 
+> [Map with layer toggles and chart]![alt text](image-1.png)
+> [Analyst console with audit panel]![alt text](image-2.png)
+> [District drill-down with redacted field]![alt text](image-4.png)
+> [AI assistant drawer]![alt text](image-3.png)
 
 ## Site structure
 
