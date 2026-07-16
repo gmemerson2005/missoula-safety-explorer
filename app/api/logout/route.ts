@@ -6,9 +6,13 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ANALYST_COOKIE } from "@lib/auth";
+import { ANALYST_COOKIE, isCrossOrigin } from "@lib/auth";
 
-export async function POST() {
+export async function POST(request: Request) {
+  // CSRF guard: don't let a third-party page force-logout an analyst.
+  if (isCrossOrigin(request)) {
+    redirect("/");
+  }
   const cookieStore = await cookies();
   cookieStore.delete(ANALYST_COOKIE);
   redirect("/");

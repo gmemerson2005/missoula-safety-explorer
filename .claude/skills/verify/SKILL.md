@@ -31,11 +31,18 @@ fine on localhost (browsers and curl treat localhost as a secure context).
 
 ## Probes that should hold
 
-- `from=https://evil.com` or `from=//evil.com` on login → Location is
-  `/analyst`, never external (open-redirect guard).
+- `from=https://evil.com`, `from=//evil.com`, or `from=/\evil.com`
+  (backslash) on login → Location is `/analyst`, never external.
 - Forged `Cookie: analyst_session=hacker` → still redirected to /login.
 - Missing/empty passphrase field → 303 to `/login?error=1`, not a 500.
 - `GET /api/login` → 405.
+- CSRF: `POST /api/logout` with `Origin: https://evil.com` → session cookie
+  survives (verify /analyst is still 200 afterward); same-origin logout
+  clears it.
+- Matcher anchoring: `/apiary?view=analyst` and `/login-help?view=analyst`
+  ARE gated (307 to /login); `/login?from=...` stays 200.
+- Analyst payload includes all attributes (`globalid` appears); public
+  payload never does.
 
 ## Gotchas
 

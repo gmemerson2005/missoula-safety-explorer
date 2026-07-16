@@ -77,6 +77,55 @@ export async function fetchLayerCount(
   return { ok: true, value: count };
 }
 
+/** Hard cap on pagination requests, in case a layer grows without bound. */
+const MAX_PAGES = 10;
+
+type PagedCollection = LayerGeoJSON & {
+  properties?: { exceededTransferLimit?: boolean };
+};
+
+/**
+ * Fetch every page of a query. ArcGIS caps responses at the service's
+ * maxRecordCount and flags truncation with `exceededTransferLimit`; without
+ * this loop, "every record" silently becomes "the first 1000 records" the
+ * day a layer grows past the cap.
+ */
+async function fetchAllPages(
+  dataset: DatasetConfig,
+  params: Record<string, string>
+): Promise<Result<LayerGeoJSON>> {
+  let merged: LayerGeoJSON | null = null;
+  let offset = 0;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = buildQueryUrl(dataset, {
+      ...params,
+      ...(offset > 0 ? { resultOffset: String(offset) } : {}),
+    });
+    const result = await arcgisFetch(url);
+    if (!result.ok) return result;
+    const collection = result.value as PagedCollection;
+    if (
+      collection.type !== "FeatureCollection" ||
+      !Array.isArray(collection.features)
+    ) {
+      return { ok: false, error: "County API returned unexpected GeoJSON" };
+    }
+    if (merged === null) {
+      merged = collection;
+    } else {
+      merged.features.push(...collection.features);
+    }
+    if (
+      !collection.properties?.exceededTransferLimit ||
+      collection.features.length === 0
+    ) {
+      break;
+    }
+    offset += collection.features.length;
+  }
+  return { ok: true, value: merged as LayerGeoJSON };
+}
+
 /**
  * Geometry + display attributes for the map, in WGS84. Polygon layers carry
  * server-side generalization params from the dataset config to keep payloads
@@ -85,48 +134,37 @@ export async function fetchLayerCount(
  * `outFields` narrows which attributes the county server returns. This is
  * part of the access gating: the public map is fetched with the name field
  * only, so a public visitor's page payload never even contains the other
- * attributes — withholding beats hiding.
+ * attributes — withholding beats hiding. Analyst surfaces pass ["*"].
  */
 export async function fetchLayerGeoJSON(
   dataset: DatasetConfig,
   outFields?: string[]
 ): Promise<Result<LayerGeoJSON>> {
-  const url = buildQueryUrl(dataset, {
+  return fetchAllPages(dataset, {
     outFields: (outFields ?? dataset.tableFields.map((f) => f.key)).join(","),
     outSR: "4326",
     f: "geojson",
     ...dataset.geometryParams,
   });
-  const result = await arcgisFetch(url);
-  if (!result.ok) return result;
-  const collection = result.value as LayerGeoJSON;
-  if (collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
-    return { ok: false, error: "County API returned unexpected GeoJSON" };
-  }
-  return { ok: true, value: collection };
 }
 
 /**
- * Attribute rows only (`returnGeometry=false`) for the analyst data table —
- * the 955-row floodplain table is ~99 KB this way versus ~18 MB with
- * geometry.
+ * Attribute rows only (`returnGeometry=false`) for the analyst data table.
+ * The analyst tier promises every record with ALL attributes, so this asks
+ * for `outFields=*` — but never geometry, which is what makes the 955-row
+ * floodplain table a few hundred KB instead of ~18 MB.
  */
 export async function fetchLayerTable(
   dataset: DatasetConfig
 ): Promise<Result<FeatureProperties[]>> {
-  const url = buildQueryUrl(dataset, {
-    outFields: dataset.tableFields.map((f) => f.key).join(","),
+  const result = await fetchAllPages(dataset, {
+    outFields: "*",
     returnGeometry: "false",
     f: "geojson",
   });
-  const result = await arcgisFetch(url);
   if (!result.ok) return result;
-  const collection = result.value as LayerGeoJSON;
-  if (collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
-    return { ok: false, error: "County API returned unexpected GeoJSON" };
-  }
   return {
     ok: true,
-    value: collection.features.map((f) => f.properties ?? {}),
+    value: result.value.features.map((f) => f.properties ?? {}),
   };
 }

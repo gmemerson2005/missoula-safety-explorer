@@ -23,14 +23,10 @@ export async function buildMapLayers(
   // Public maps fetch the name field only, so the serialized page payload a
   // public visitor receives contains no other attributes to "unhide" —
   // popup rendering merely displays what the server already withheld.
+  // Analysts get every published attribute (outFields=*).
   const results = await Promise.all(
     datasets.map((dataset) =>
-      fetchLayerGeoJSON(
-        dataset,
-        role === "analyst"
-          ? dataset.tableFields.map((f) => f.key)
-          : [dataset.nameField]
-      )
+      fetchLayerGeoJSON(dataset, role === "analyst" ? ["*"] : [dataset.nameField])
     )
   );
 

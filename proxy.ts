@@ -52,6 +52,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Skip static assets and the auth surfaces themselves (/login and the
-  // /api/login|logout handlers) — gating those would loop.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|login).*)"],
+  // /api/* handlers) — gating those would loop. The exclusions are anchored
+  // to whole path segments ("api/", "login" then end-or-slash) so that
+  // future routes like /apiary or /login-help don't silently slip past the
+  // gate. NOTE: this still exempts all of /api/* — any future API route
+  // serving analyst data must do its own session check.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon\\.ico|login(?:/|$)).*)"],
 };

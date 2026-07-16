@@ -22,3 +22,20 @@ export async function hasAnalystSession(): Promise<boolean> {
   const cookieStore = await cookies();
   return cookieStore.get(ANALYST_COOKIE)?.value === ANALYST_COOKIE_VALUE;
 }
+
+/**
+ * Minimal CSRF guard for the login/logout route handlers: browsers send an
+ * Origin header on form POSTs; if one is present and doesn't match the host
+ * we're serving, refuse. Non-browser clients without an Origin pass —
+ * CSRF is a browser problem. Production would pair this with a CSRF token
+ * from the session layer.
+ */
+export function isCrossOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== request.headers.get("host");
+  } catch {
+    return true;
+  }
+}

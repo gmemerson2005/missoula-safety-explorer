@@ -27,9 +27,15 @@ export default function RoleToggle() {
   return (
     <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted">
       <span>Role</span>
+      {/* WCAG 3.2.2: changing this select navigates immediately, so say so
+          up front for assistive tech. */}
+      <span id="role-toggle-hint" className="sr-only">
+        Choosing a role immediately navigates to that view.
+      </span>
       <select
         value={role}
         onChange={(e) => onChange(e.target.value)}
+        aria-describedby="role-toggle-hint"
         className="border border-line bg-surface-2 px-2 py-1 font-mono text-xs uppercase tracking-wider text-foreground hover:border-accent"
       >
         <option value="public">Public</option>

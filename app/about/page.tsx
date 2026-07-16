@@ -106,7 +106,9 @@ export default function AboutPage() {
           Leaflet map, table search and sort, and the role dropdown that
           rewrites the URL.
         </p>
-        <div className="mt-4" role="img" aria-label="Request flow diagram: browser to proxy gate to server components to county API">
+        {/* Plain markup, deliberately not role="img": the boxes contain real
+            explanatory text that screen readers should walk through. */}
+        <div className="mt-4" aria-label="Request flow, top to bottom" role="group">
           <DiagramBox title="Browser">
             Map island · table search/sort · role dropdown (?view=) — no county
             fetches, no secrets

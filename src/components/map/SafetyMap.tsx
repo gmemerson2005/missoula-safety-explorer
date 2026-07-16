@@ -48,10 +48,20 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+/** Deterministic small hash so each district keeps its style across loads. */
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 /**
  * Popup markup is built as an escaped HTML string (Leaflet popups live
  * outside the React tree). Public role: name only. Analyst role: every
- * configured attribute. County data is third-party input, so everything is
+ * attribute present on the feature (the server already decided what those
+ * are, per role). County data is third-party input, so everything is
  * escaped.
  */
 function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "analyst"): string {
@@ -66,15 +76,16 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
     `<div class="msx-popup-kicker">${escapeHtml(layer.title)}</div>` +
     `<div class="msx-popup-name">${name}</div>`;
   if (role === "public") return head;
-  const rows = layer.fields
-    .map((field) => {
-      const value = props[field.key];
+  const labelFor = new Map(layer.fields.map((f) => [f.key, f.label]));
+  const rows = Object.entries(props)
+    .filter(([key]) => key !== layer.nameField)
+    .map(([key, value]) => {
       const text =
         value === null || value === undefined || value === ""
           ? "—"
           : String(value);
       return (
-        `<tr><th scope="row">${escapeHtml(field.label)}</th>` +
+        `<tr><th scope="row">${escapeHtml(labelFor.get(key) ?? key)}</th>` +
         `<td>${escapeHtml(text)}</td></tr>`
       );
     })
@@ -83,12 +94,25 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
 }
 
 export default function SafetyMap({ layers, role }: SafetyMapProps) {
+  // Leaflet's pan/zoom easing is JS-driven, so the CSS reduced-motion reset
+  // in globals.css can't reach it — honor the OS setting via map options.
+  // This file only runs in the browser (ssr:false), so matchMedia exists.
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   return (
-    <div className="relative h-full w-full">
+    // `isolate` caps Leaflet's internal z-indexes (controls sit at 1000)
+    // inside this box so they can never paint over the sticky site header.
+    <div className="relative isolate h-full w-full">
       <MapContainer
         center={CENTER}
         zoom={9}
         scrollWheelZoom={false}
+        zoomAnimation={!reduceMotion}
+        fadeAnimation={!reduceMotion}
+        markerZoomAnimation={!reduceMotion}
+        inertia={!reduceMotion}
         className="h-full w-full bg-background"
       >
         <TileLayer
@@ -105,13 +129,30 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
           };
           return (
             <GeoJSON
-              key={layer.id}
+              // react-leaflet's GeoJSON never re-reads the data prop after
+              // mount, so the key carries everything that changes what was
+              // drawn: the role (public vs analyst attributes/popups) —
+              // without it, toggling roles client-side would keep stale
+              // popups bound.
+              key={`${layer.id}-${role}`}
               data={layer.geojson}
-              style={{
-                color: paint.color,
-                weight: 1.5,
-                fillColor: paint.color,
-                fillOpacity: paint.fillOpacity,
+              style={(feature) => {
+                // "Styled by district": fire polygons get a deterministic
+                // per-district fill density (same hue — the accent stays
+                // the accent) so neighboring districts read as distinct.
+                let fillOpacity = paint.fillOpacity;
+                if (layer.id === "fireDistricts") {
+                  const name = String(
+                    feature?.properties?.[layer.nameField] ?? ""
+                  );
+                  fillOpacity = 0.06 + (hashString(name) % 8) * 0.035;
+                }
+                return {
+                  color: paint.color,
+                  weight: 1.5,
+                  fillColor: paint.color,
+                  fillOpacity,
+                };
               }}
               pointToLayer={(_feature, latlng) =>
                 // circleMarker instead of the default icon Marker: no image

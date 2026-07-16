@@ -15,7 +15,11 @@ export default function HomeLoading() {
         ))}
       </div>
       <div className="skeleton mt-8 h-[420px] border border-line" />
-      <p className="sr-only">Loading county data…</p>
+      {/* role="status" so screen readers announce the wait (aria-busy alone
+          is silent in most of them). */}
+      <p role="status" className="sr-only">
+        Loading county data…
+      </p>
     </main>
   );
 }

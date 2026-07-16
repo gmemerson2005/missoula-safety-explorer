@@ -23,12 +23,30 @@ interface DataTableProps {
 
 type SortDir = "asc" | "desc";
 
+function isBlank(value: CellValue): boolean {
+  return value === null || value === undefined || value === "";
+}
+
+/** Compares non-blank values only; blank handling lives in the sort callback. */
 function compareValues(a: CellValue, b: CellValue): number {
-  // Nulls sort last regardless of direction of the non-null comparison.
-  if (a === null || a === undefined || a === "") return 1;
-  if (b === null || b === undefined || b === "") return -1;
   if (typeof a === "number" && typeof b === "number") return a - b;
   return String(a).localeCompare(String(b), "en", { numeric: true });
+}
+
+/**
+ * ArcGIS serves date fields as epoch milliseconds; render those as ISO dates
+ * (detected by field name) instead of 13-digit numbers.
+ */
+function formatCell(key: string, value: CellValue): string {
+  if (isBlank(value)) return "—";
+  if (typeof value === "number") {
+    if (/date$/i.test(key) && value > 10_000_000_000) {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+  return String(value);
 }
 
 export default function DataTable({ title, columns, rows }: DataTableProps) {
@@ -49,7 +67,14 @@ export default function DataTable({ title, columns, rows }: DataTableProps) {
       : rows;
     if (sortKey) {
       result = [...result].sort((a, b) => {
-        const cmp = compareValues(a[sortKey], b[sortKey]);
+        const av = a[sortKey];
+        const bv = b[sortKey];
+        // Blanks sort last in BOTH directions, so their ordering is decided
+        // here and deliberately not run through the direction flip below.
+        const aBlank = isBlank(av);
+        const bBlank = isBlank(bv);
+        if (aBlank || bBlank) return aBlank && bBlank ? 0 : aBlank ? 1 : -1;
+        const cmp = compareValues(av, bv);
         return sortDir === "asc" ? cmp : -cmp;
       });
     }
@@ -93,7 +118,14 @@ export default function DataTable({ title, columns, rows }: DataTableProps) {
         </span>
       </div>
 
-      <div className="mt-3 max-h-[480px] overflow-auto border border-line">
+      {/* tabIndex + role make the clipped region keyboard-scrollable in
+          Firefox/Safari, where scroll containers aren't focusable by default. */}
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label={`${title} table, scrollable`}
+        className="mt-3 max-h-[480px] overflow-auto border border-line"
+      >
         <table className="w-full border-collapse font-mono text-xs">
           <caption className="sr-only">{title}</caption>
           <thead className="sticky top-0 z-10 bg-surface-2">
@@ -136,13 +168,7 @@ export default function DataTable({ title, columns, rows }: DataTableProps) {
               >
                 {columns.map((col) => (
                   <td key={col.key} className="px-3 py-1.5 align-top text-foreground/90">
-                    {row[col.key] === null || row[col.key] === undefined || row[col.key] === ""
-                      ? "—"
-                      : typeof row[col.key] === "number"
-                        ? (row[col.key] as number).toLocaleString("en-US", {
-                            maximumFractionDigits: 2,
-                          })
-                        : String(row[col.key])}
+                    {formatCell(col.key, row[col.key])}
                   </td>
                 ))}
               </tr>

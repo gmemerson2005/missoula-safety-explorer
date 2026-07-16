@@ -43,7 +43,11 @@ export interface DatasetConfig {
   geometryKind: "polygon" | "point";
   /** Attribute holding the human-readable feature name/label. */
   nameField: string;
-  /** Attributes fetched for the analyst table and analyst map popups. */
+  /**
+   * Friendly labels for well-known attributes. Analyst surfaces fetch ALL
+   * attributes (outFields=*) and fall back to raw field names for anything
+   * not listed here; public map requests fetch only nameField.
+   */
   tableFields: TableField[];
   /** Extra query params for geometry requests (server-side generalization). */
   geometryParams: Record<string, string>;

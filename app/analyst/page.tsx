@@ -8,14 +8,33 @@
 
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { DATASETS, getDataset } from "@lib/datasets";
+import { DATASETS, getDataset, type DatasetConfig } from "@lib/datasets";
 import { fetchLayerTable, type FeatureProperties, type Result } from "@lib/arcgis";
 import { hasAnalystSession } from "@lib/auth";
+import { geometryAreaSqMi } from "@lib/geo";
 import { buildMapLayers } from "@lib/mapData";
 import DataTable from "@components/DataTable";
+import FeatureList from "@components/FeatureList";
 import MapPanel from "@components/map/MapPanel";
 
 export const metadata: Metadata = { title: "Analyst console" };
+
+/**
+ * The analyst tier shows every attribute the county publishes, so columns
+ * are derived from the fetched rows (outFields=*) — the curated tableFields
+ * config only supplies friendlier labels for the fields it knows about.
+ */
+function deriveColumns(
+  dataset: DatasetConfig,
+  rows: FeatureProperties[]
+): { key: string; label: string }[] {
+  if (rows.length === 0) return dataset.tableFields;
+  const labelFor = new Map(dataset.tableFields.map((f) => [f.key, f.label]));
+  return Object.keys(rows[0]).map((key) => ({
+    key,
+    label: labelFor.get(key) ?? key,
+  }));
+}
 
 /** Group rows by an attribute, counting and summing numeric `sumKey`. */
 function breakdown(
@@ -123,6 +142,7 @@ export default async function AnalystPage() {
 
   const polling = byId.get("pollingLocations")!;
   const flood = byId.get("floodplain")!;
+  const fireLayer = mapData.layers.find((l) => l.id === "fireDistricts");
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -143,7 +163,6 @@ export default async function AnalystPage() {
         {mapData.offline.map((entry) => (
           <p
             key={entry.title}
-            role="status"
             className="mb-2 border border-danger/60 bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-danger"
           >
             ○ {entry.title} layer offline — not shown on map
@@ -160,10 +179,32 @@ export default async function AnalystPage() {
             </p>
           </div>
         )}
+        <FeatureList layers={mapData.layers} />
       </section>
 
-      {/* Per-group breakdowns */}
-      <section aria-label="Breakdowns" className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2">
+      {/* Per-district and per-group breakdowns */}
+      <section
+        aria-label="Breakdowns"
+        className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
+        {fireLayer ? (
+          <BreakdownTable
+            label="Fire district coverage"
+            unitLabel="≈ sq mi"
+            data={fireLayer.geojson.features
+              .map((feature) => ({
+                group: String(feature.properties?.name ?? "(unnamed)"),
+                count: Math.round(geometryAreaSqMi(feature.geometry)),
+                sum: 0,
+              }))
+              .sort((a, b) => b.count - a.count)}
+          />
+        ) : (
+          <OfflinePanel
+            title="Fire district breakdown"
+            error="Fire Districts geometry unavailable"
+          />
+        )}
         {flood.ok ? (
           <BreakdownTable
             label="Flood polygons by FEMA zone"
@@ -183,6 +224,10 @@ export default async function AnalystPage() {
         ) : (
           <OfflinePanel title="Polling breakdown" error={polling.error} />
         )}
+        <p className="font-mono text-[11px] uppercase tracking-widest text-faint md:col-span-2 xl:col-span-3">
+          District areas are computed from generalized boundaries — treat as
+          approximate.
+        </p>
       </section>
 
       {/* Full data tables */}
@@ -212,7 +257,7 @@ export default async function AnalystPage() {
               {result.ok ? (
                 <DataTable
                   title={dataset.title}
-                  columns={dataset.tableFields}
+                  columns={deriveColumns(dataset, result.value)}
                   rows={result.value}
                 />
               ) : (

@@ -15,19 +15,32 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ANALYST_COOKIE, ANALYST_COOKIE_VALUE } from "@lib/auth";
+import { ANALYST_COOKIE, ANALYST_COOKIE_VALUE, isCrossOrigin } from "@lib/auth";
 
 const ANALYST_PASSPHRASE = "kestrel"; // mock credential, intentionally not a secret
 
-/** Only ever redirect to a same-site path — never to an external URL. */
+/**
+ * Only ever redirect to a same-site path — never to an external URL.
+ * Rejects "//host" AND any backslash: browsers normalize "\" to "/" when
+ * resolving Location, so "/\evil.com" would become protocol-relative.
+ */
 function safeInternalPath(raw: FormDataEntryValue | null): string {
-  if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//")) {
+  if (
+    typeof raw !== "string" ||
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.includes("\\")
+  ) {
     return "/analyst";
   }
   return raw;
 }
 
 export async function POST(request: Request) {
+  // CSRF guard — see isCrossOrigin in src/lib/auth.ts.
+  if (isCrossOrigin(request)) {
+    redirect("/login?error=1");
+  }
   const formData = await request.formData();
   const passphrase = formData.get("passphrase");
   const from = safeInternalPath(formData.get("from"));

@@ -15,6 +15,7 @@ import { hasAnalystSession } from "@lib/auth";
 import { buildMapLayers } from "@lib/mapData";
 import StatCard from "@components/StatCard";
 import MapPanel from "@components/map/MapPanel";
+import FeatureList from "@components/FeatureList";
 
 export default async function Home({
   searchParams,
@@ -92,7 +93,6 @@ export default async function Home({
         {mapData.offline.map((entry) => (
           <p
             key={entry.title}
-            role="status"
             className="mb-2 border border-danger/60 bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-danger"
           >
             ○ {entry.title} layer offline — not shown on map
@@ -114,6 +114,7 @@ export default async function Home({
             ? "Analyst map — popups expose full attributes; flood zones overlaid."
             : "Public map — popups show names only."}
         </p>
+        <FeatureList layers={mapData.layers} />
       </section>
 
       {/* Layer descriptions */}

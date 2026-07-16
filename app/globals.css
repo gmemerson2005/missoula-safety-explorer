@@ -11,10 +11,12 @@
   --line: #242424;
   --foreground: #e8e6e2;
   --muted: #98948c;
-  --faint: #5b5750;
+  /* Quietest text tier that still clears WCAG AA 4.5:1 on background and
+     surface — it labels real content (record counts, source lines). */
+  --faint: #807b73;
   --accent: #f07d00;
   --accent-hover: #ff9120;
-  --danger: #d64545;
+  --danger: #dd5555;
 }
 
 @theme inline {

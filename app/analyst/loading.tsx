@@ -18,7 +18,11 @@ export default function AnalystLoading() {
           <div className="skeleton mt-3 h-64 border border-line" />
         </div>
       ))}
-      <p className="sr-only">Loading analyst data…</p>
+      {/* role="status" so screen readers announce the wait (aria-busy alone
+          is silent in most of them). */}
+      <p role="status" className="sr-only">
+        Loading analyst data…
+      </p>
     </main>
   );
 }

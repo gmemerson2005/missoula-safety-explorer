@@ -27,8 +27,8 @@ export default function StatCard({ label, value, unit, ok, meta }: StatCardProps
           {unit}
         </span>
       </div>
+      {/* Static at load — plain text, not a live region. */}
       <div
-        role="status"
         className={`mt-3 border-t border-line pt-2 font-mono text-[10px] uppercase tracking-widest ${
           ok ? "text-faint" : "text-danger"
         }`}
