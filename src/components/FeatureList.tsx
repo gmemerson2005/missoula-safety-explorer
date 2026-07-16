@@ -30,7 +30,7 @@ export default function FeatureList({ layers }: { layers: MapLayerData[] }) {
   if (layers.length === 0) return null;
   return (
     <details className="mt-2 border border-line bg-surface">
-      <summary className="cursor-pointer px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-muted hover:text-accent-hover">
+      <summary className="cursor-pointer px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-muted hover:text-foreground">
         Map features as text (keyboard-accessible alternative)
       </summary>
       <div className="grid grid-cols-1 gap-4 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-3">

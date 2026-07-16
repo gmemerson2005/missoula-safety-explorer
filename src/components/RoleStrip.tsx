@@ -22,7 +22,7 @@ export default function RoleStrip() {
     return (
       <div
         role="status"
-        className="border-b border-accent bg-accent px-4 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.25em] text-background"
+        className="border-b border-tier bg-tier px-4 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.25em] text-background"
       >
         Analyst view — full record access
       </div>

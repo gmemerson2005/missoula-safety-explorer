@@ -1,33 +1,47 @@
-// Server Component (no directive) — pure presentation of numbers that were
-// fetched on the server. Styled as an operations readout: mono label, mono
-// value, source line with an explicit text status (never color alone).
+// Server Component (no directive) — presentation of numbers fetched on the
+// server. Per the design system, each card wears its layer's signature color
+// (left rule + label) and the value counts up on first view via the
+// AnimatedNumber client island. `accent` is a CSS color pair from the layer
+// palette; neutral cards (e.g. "data sources online") omit it.
+
+import AnimatedNumber from "@components/motion/AnimatedNumber";
 
 interface StatCardProps {
   label: string;
-  value: string;
+  /** Numeric value animates; pass `null` when the source is offline. */
+  value: number | null;
   unit: string;
-  /** null means the source failed; the card degrades instead of crashing. */
-  ok: boolean;
   meta: string;
+  /** Layer signature color (mark + AA text variant), e.g. fire/flood/civic. */
+  accent?: { mark: string; text: string };
 }
 
-export default function StatCard({ label, value, unit, ok, meta }: StatCardProps) {
+export default function StatCard({ label, value, unit, meta, accent }: StatCardProps) {
+  const ok = value !== null;
   return (
-    <div className="border border-line bg-surface p-4">
-      <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+    <div
+      className="border border-line bg-surface p-4"
+      style={accent ? { borderLeft: `3px solid ${accent.mark}` } : undefined}
+    >
+      <div
+        className="font-mono text-[11px] uppercase tracking-[0.2em]"
+        style={{ color: accent && ok ? accent.text : "var(--muted)" }}
+      >
         {label}
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
+      <div className="mt-1 flex items-baseline gap-2">
         <span
-          className={`font-mono text-4xl font-semibold ${ok ? "text-foreground" : "text-faint"}`}
+          className={`font-display text-5xl font-bold tracking-tight ${
+            ok ? "text-foreground" : "text-faint"
+          }`}
         >
-          {value}
+          {ok ? <AnimatedNumber value={value} /> : "—"}
         </span>
         <span className="font-mono text-xs uppercase tracking-widest text-faint">
           {unit}
         </span>
       </div>
-      {/* Static at load — plain text, not a live region. */}
+      {/* Status is words, never color alone. */}
       <div
         className={`mt-3 border-t border-line pt-2 font-mono text-[10px] uppercase tracking-widest ${
           ok ? "text-faint" : "text-danger"

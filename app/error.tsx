@@ -15,7 +15,7 @@ export default function HomeError({
       <p className="font-mono text-xs uppercase tracking-[0.3em] text-danger">
         Feed fault
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+      <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">
         This page failed to load
       </h1>
       <p className="mt-3 leading-7 text-muted">
@@ -29,7 +29,7 @@ export default function HomeError({
       <button
         type="button"
         onClick={() => unstable_retry()}
-        className="mt-6 border border-accent px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-accent hover:border-accent-hover hover:text-accent-hover"
+        className="mt-6 border border-tier px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-tier-text hover:border-foreground hover:text-foreground"
       >
         Retry
       </button>

@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { DATASETS } from "@lib/datasets";
+import { LAYER_COLORS } from "@lib/layerColors";
 import { fetchLayerCount } from "@lib/arcgis";
 import { hasAnalystSession } from "@lib/auth";
 import { buildMapLayers } from "@lib/mapData";
@@ -43,10 +44,10 @@ export default async function Home({
     <main className="mx-auto max-w-6xl px-4 py-8">
       {/* Pitch */}
       <section className="max-w-3xl">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
+        <p className="font-mono text-xs uppercase tracking-[0.3em] text-tier-text">
           Missoula County · Montana
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="mt-2 font-display text-5xl font-bold tracking-tight sm:text-6xl">
           Public Safety Explorer
         </h1>
         <p className="mt-3 leading-7 text-muted">
@@ -67,18 +68,17 @@ export default async function Home({
               <StatCard
                 key={dataset.id}
                 label={dataset.title}
-                value={result.ok ? result.value.toLocaleString("en-US") : "—"}
+                value={result.ok ? result.value : null}
                 unit={dataset.unit}
-                ok={result.ok}
                 meta={result.ok ? "Missoula County GIS" : "source unavailable"}
+                accent={LAYER_COLORS[dataset.id]}
               />
             );
           })}
           <StatCard
             label="Data sources"
-            value={`${sourcesOnline}/${DATASETS.length}`}
-            unit="online"
-            ok={sourcesOnline > 0}
+            value={sourcesOnline > 0 ? sourcesOnline : null}
+            unit={`of ${DATASETS.length} online`}
             meta={
               sourcesOnline === DATASETS.length
                 ? "all feeds nominal"
@@ -131,7 +131,7 @@ export default async function Home({
                   <h3 className="font-mono text-sm font-semibold uppercase tracking-wider">
                     {dataset.title}
                   </h3>
-                  <span className="font-mono text-xs text-accent">
+                  <span className="font-mono text-xs text-tier-text">
                     {result.ok
                       ? `${result.value.toLocaleString("en-US")} ${dataset.unit}`
                       : "offline"}
@@ -140,7 +140,7 @@ export default async function Home({
                     href={dataset.sourcePage}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted hover:text-accent-hover"
+                    className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted hover:text-foreground"
                   >
                     Source ↗
                   </a>
@@ -156,7 +156,7 @@ export default async function Home({
           <p className="mt-4 font-mono text-xs uppercase tracking-widest">
             <Link
               href="/analyst"
-              className="text-accent hover:text-accent-hover"
+              className="text-tier-text hover:text-foreground"
             >
               → Open the analyst console for full records
             </Link>

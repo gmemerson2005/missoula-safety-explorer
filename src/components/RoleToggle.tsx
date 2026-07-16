@@ -36,7 +36,7 @@ export default function RoleToggle() {
         value={role}
         onChange={(e) => onChange(e.target.value)}
         aria-describedby="role-toggle-hint"
-        className="border border-line bg-surface-2 px-2 py-1 font-mono text-xs uppercase tracking-wider text-foreground hover:border-accent"
+        className="border border-line bg-surface-2 px-2 py-1 font-mono text-xs uppercase tracking-wider text-foreground hover:border-foreground"
       >
         <option value="public">Public</option>
         <option value="analyst">Analyst</option>

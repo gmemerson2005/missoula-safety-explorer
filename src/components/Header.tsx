@@ -22,21 +22,21 @@ export default function Header({ isAuthenticated }: { isAuthenticated: boolean }
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-line bg-background/95 px-4 py-3 backdrop-blur">
         <Link
           href="/"
-          className="font-mono text-sm font-semibold uppercase tracking-[0.2em] text-foreground hover:text-accent-hover"
+          className="font-mono text-sm font-semibold uppercase tracking-[0.2em] text-foreground hover:text-foreground"
         >
-          <span className="text-accent">▲</span> Missoula Public Safety Explorer
+          <span className="text-tier-text">▲</span> Missoula Public Safety Explorer
         </Link>
         <nav
           aria-label="Primary"
           className="flex items-center gap-4 font-mono text-xs uppercase tracking-widest"
         >
-          <Link href="/" className="text-muted hover:text-accent-hover">
+          <Link href="/" className="text-muted hover:text-foreground">
             Map
           </Link>
-          <Link href="/analyst" className="text-muted hover:text-accent-hover">
+          <Link href="/analyst" className="text-muted hover:text-foreground">
             Analyst
           </Link>
-          <Link href="/about" className="text-muted hover:text-accent-hover">
+          <Link href="/about" className="text-muted hover:text-foreground">
             About
           </Link>
         </nav>
@@ -50,7 +50,7 @@ export default function Header({ isAuthenticated }: { isAuthenticated: boolean }
             <form action="/api/logout" method="POST">
               <button
                 type="submit"
-                className="border border-line px-3 py-1 font-mono text-xs uppercase tracking-widest text-muted hover:border-accent hover:text-accent-hover"
+                className="border border-line px-3 py-1 font-mono text-xs uppercase tracking-widest text-muted hover:border-foreground hover:text-foreground"
               >
                 Sign out
               </button>

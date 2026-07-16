@@ -13,6 +13,7 @@ import "leaflet/dist/leaflet.css";
 import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import type { Feature } from "geojson";
 import type { LayerGeoJSON } from "@lib/arcgis";
+import { INK, LAYER_COLORS } from "@lib/layerColors";
 
 export interface MapLayerData {
   id: string;
@@ -32,11 +33,12 @@ export interface SafetyMapProps {
 // Missoula County, Montana.
 const CENTER: [number, number] = [46.9, -113.9];
 
-// One paint scheme per layer identity. Fire wears the app accent; flood is a
-// desaturated water blue so the two polygon layers never read as one.
+// One paint scheme per layer identity, from the shared signature palette
+// (src/lib/layerColors.ts) — the same colors the toggles, stat cards, and
+// charts wear.
 const LAYER_PAINT: Record<string, { color: string; fillOpacity: number }> = {
-  fireDistricts: { color: "#f07d00", fillOpacity: 0.1 },
-  floodplain: { color: "#5b8db8", fillOpacity: 0.25 },
+  fireDistricts: { color: LAYER_COLORS.fireDistricts.mark, fillOpacity: 0.1 },
+  floodplain: { color: LAYER_COLORS.floodplain.mark, fillOpacity: 0.25 },
 };
 
 function escapeHtml(value: string): string {
@@ -124,7 +126,7 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
         />
         {layers.map((layer) => {
           const paint = LAYER_PAINT[layer.id] ?? {
-            color: "#f07d00",
+            color: LAYER_COLORS.fireDistricts.mark,
             fillOpacity: 0.1,
           };
           return (
@@ -159,9 +161,9 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
                 // assets to bundle, and it takes the theme colors directly.
                 L.circleMarker(latlng, {
                   radius: 6,
-                  color: "#080808",
+                  color: INK,
                   weight: 2,
-                  fillColor: "#ff9120",
+                  fillColor: LAYER_COLORS.pollingLocations.mark,
                   fillOpacity: 1,
                 })
               }
@@ -191,10 +193,10 @@ export default function SafetyMap({ layers, role }: SafetyMapProps) {
                   }
                   style={
                     layer.kind === "point"
-                      ? { background: "#ff9120" }
+                      ? { background: LAYER_COLORS.pollingLocations.mark }
                       : {
-                          borderColor: paint?.color ?? "#f07d00",
-                          background: `${paint?.color ?? "#f07d00"}33`,
+                          borderColor: paint?.color ?? LAYER_COLORS.fireDistricts.mark,
+                          background: `${paint?.color ?? LAYER_COLORS.fireDistricts.mark}33`,
                         }
                   }
                 />

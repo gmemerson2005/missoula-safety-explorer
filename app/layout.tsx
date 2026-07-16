@@ -6,17 +6,28 @@
 // from Next's data cache with a 1-hour revalidate window.
 
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Big_Shoulders, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@components/Header";
 import { hasAnalystSession } from "@lib/auth";
 
-// Neither IBM Plex face is a variable font, so explicit weights are required.
-const plexSans = IBM_Plex_Sans({
-  weight: ["400", "500", "600"],
+// Type per the design system (.claude/skills/safety-explorer-design):
+// Big Shoulders (variable) for display, Public Sans (variable) for body,
+// IBM Plex Mono (static — explicit weights required) for data values only.
+const bigShoulders = Big_Shoulders({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-plex-sans",
+  variable: "--font-big-shoulders",
+  // next/font has no metrics for this face to auto-derive a size-adjusted
+  // fallback (build warns); a plain condensed fallback stack is close enough.
+  adjustFontFallback: false,
+  fallback: ["Arial Narrow", "Impact", "sans-serif"],
+});
+
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-public-sans",
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -44,7 +55,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${publicSans.variable} ${bigShoulders.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <Header isAuthenticated={isAuthenticated} />

@@ -148,10 +148,10 @@ export default function DataTable({ title, columns, rows }: DataTableProps) {
                     <button
                       type="button"
                       onClick={() => toggleSort(col.key)}
-                      className="flex w-full items-center gap-1 px-3 py-2 text-left uppercase tracking-wider text-muted hover:text-accent-hover"
+                      className="flex w-full items-center gap-1 px-3 py-2 text-left uppercase tracking-wider text-muted hover:text-foreground"
                     >
                       {col.label}
-                      <span aria-hidden="true" className="text-accent">
+                      <span aria-hidden="true" className="text-tier-text">
                         {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
                       </span>
                     </button>

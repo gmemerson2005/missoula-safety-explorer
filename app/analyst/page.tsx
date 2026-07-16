@@ -146,10 +146,10 @@ export default async function AnalystPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <p className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
+      <p className="font-mono text-xs uppercase tracking-[0.3em] text-tier-text">
         Analyst console
       </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+      <h1 className="mt-2 font-display text-5xl font-bold tracking-tight">
         Full record access
       </h1>
       <p className="mt-3 max-w-3xl leading-7 text-muted">
@@ -239,7 +239,7 @@ export default async function AnalystPage() {
               <h2 className="font-mono text-sm font-semibold uppercase tracking-[0.2em]">
                 {dataset.title}
               </h2>
-              <span className="font-mono text-xs text-accent">
+              <span className="font-mono text-xs text-tier-text">
                 {result.ok
                   ? `${result.value.length.toLocaleString("en-US")} ${dataset.unit}`
                   : "offline"}
@@ -248,7 +248,7 @@ export default async function AnalystPage() {
                 href={getDataset(dataset.id).sourcePage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted hover:text-accent-hover"
+                className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted hover:text-foreground"
               >
                 Source ↗
               </a>

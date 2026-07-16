@@ -18,10 +18,10 @@ function DiagramBox({
 }) {
   return (
     <div
-      className={`border ${accent ? "border-accent" : "border-line"} bg-surface p-3`}
+      className={`border ${accent ? "border-tier" : "border-line"} bg-surface p-3`}
     >
       <p
-        className={`font-mono text-[11px] uppercase tracking-[0.2em] ${accent ? "text-accent" : "text-muted"}`}
+        className={`font-mono text-[11px] uppercase tracking-[0.2em] ${accent ? "text-tier-text" : "text-muted"}`}
       >
         {title}
       </p>
@@ -33,7 +33,7 @@ function DiagramBox({
 function DiagramArrow({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-1 pl-4" aria-hidden="true">
-      <span className="font-mono text-accent">↓</span>
+      <span className="font-mono text-tier-text">↓</span>
       <span className="font-mono text-[10px] uppercase tracking-widest text-faint">
         {label}
       </span>
@@ -44,10 +44,10 @@ function DiagramArrow({ label }: { label: string }) {
 export default function AboutPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <p className="font-mono text-xs uppercase tracking-[0.3em] text-accent">
+      <p className="font-mono text-xs uppercase tracking-[0.3em] text-tier-text">
         System documentation
       </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">About</h1>
+      <h1 className="mt-2 font-display text-5xl font-bold tracking-tight">About</h1>
 
       <section className="mt-8">
         <h2 className="font-mono text-sm font-semibold uppercase tracking-[0.2em]">
@@ -59,7 +59,7 @@ export default function AboutPage() {
             href="https://missoula-county-open-data-mcgis.hub.arcgis.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:text-accent-hover"
+            className="text-tier-text hover:text-foreground"
           >
             Missoula County Open Data hub
           </a>
@@ -68,7 +68,7 @@ export default function AboutPage() {
             href="https://missoula-county-open-data-mcgis.hub.arcgis.com/api/feed/dcat-us/1.1.json"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:text-accent-hover"
+            className="text-tier-text hover:text-foreground"
           >
             DCAT-US catalog feed
           </a>{" "}
@@ -83,7 +83,7 @@ export default function AboutPage() {
                 href={dataset.sourcePage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground hover:text-accent-hover"
+                className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground hover:text-foreground"
               >
                 {dataset.title} ↗
               </a>
