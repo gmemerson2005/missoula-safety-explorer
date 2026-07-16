@@ -79,7 +79,7 @@ export default async function LandingPage() {
                     className="font-mono text-xs font-semibold uppercase tracking-[0.2em]"
                     style={{ color: color.text }}
                   >
-                    {dataset.title}
+                    {dataset.displayName}
                   </h3>
                   <p className="mt-1 font-display text-4xl font-bold">
                     {result.ok ? result.value.toLocaleString("en-US") : "—"}{" "}
@@ -88,7 +88,7 @@ export default async function LandingPage() {
                     </span>
                   </p>
                   <p className="mt-3 text-sm leading-6 text-muted">
-                    {dataset.publicDescription}
+                    {dataset.description}
                   </p>
                 </article>
               );
@@ -176,12 +176,12 @@ export default async function LandingPage() {
             {DATASETS.map((dataset) => (
               <li key={dataset.id}>
                 <a
-                  href={dataset.sourcePage}
+                  href={dataset.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block border border-line bg-background p-4 font-mono text-xs uppercase tracking-wider text-muted transition-colors duration-150 hover:border-foreground hover:text-foreground"
                 >
-                  {dataset.title} ↗
+                  {dataset.displayName} ↗
                 </a>
               </li>
             ))}

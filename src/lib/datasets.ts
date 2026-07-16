@@ -7,10 +7,12 @@
  *
  * Every endpoint below was verified live on 2026-07-15 with curl against the
  * FeatureServer query API (both `returnCountOnly=true` and a full `f=geojson`
- * request). Notes from that verification:
+ * request), and the field maps against each layer's `?f=json` metadata.
+ * Notes from that verification:
  *
  *  - The hub's DCAT descriptions are broken (literal "{{description}}" template
- *    strings), so the plain-English descriptions here are written by hand.
+ *    strings), so the plain-English names and descriptions here are written by
+ *    hand.
  *  - The county publishes NO dedicated public-safety point layer (no fire
  *    stations, hydrants, or law-enforcement points). Polling Locations is the
  *    only modest-size point layer on the hub and several of its points are in
@@ -27,26 +29,35 @@ export type DatasetId = "fireDistricts" | "pollingLocations" | "floodplain";
 export interface TableField {
   /** Attribute name exactly as the FeatureServer exposes it (case-sensitive). */
   key: string;
-  /** Human label for table headers. */
+  /** Human label for table headers, popups, and chart axes. */
   label: string;
+  /**
+   * Internal bookkeeping fields (OBJECTID, Shape__Area, edit-tracking
+   * columns and similar) are hidden by default in every surface; the analyst
+   * table can reveal them on demand.
+   */
+  hidden?: boolean;
 }
 
 export interface DatasetConfig {
   id: DatasetId;
-  title: string;
-  /** Short plain-English description shown in the public view. */
-  publicDescription: string;
+  /** Plain-English layer name used EVERYWHERE the layer is shown. */
+  displayName: string;
+  /** One sentence: what the layer shows and why someone would care. */
+  description: string;
   /** Hub landing page for attribution links. */
-  sourcePage: string;
+  sourceUrl: string;
   /** ArcGIS FeatureServer layer endpoint (no trailing slash, no /query). */
   serviceUrl: string;
   geometryKind: "polygon" | "point";
   /** Attribute holding the human-readable feature name/label. */
   nameField: string;
   /**
-   * Friendly labels for well-known attributes. Analyst surfaces fetch ALL
-   * attributes (outFields=*) and fall back to raw field names for anything
-   * not listed here; public map requests fetch only nameField.
+   * Per-layer field map: readable labels for every attribute the
+   * FeatureServer publishes (verified against layer metadata). Analyst
+   * surfaces fetch ALL attributes (outFields=*) and fall back to raw field
+   * names for anything not listed here; public map requests fetch only
+   * nameField.
    */
   tableFields: TableField[];
   /** Extra query params for geometry requests (server-side generalization). */
@@ -57,6 +68,18 @@ export interface DatasetConfig {
   unit: string;
 }
 
+/** Edit-tracking columns ArcGIS Online appends to every layer — never useful. */
+const ARCGIS_BOOKKEEPING: TableField[] = [
+  { key: "created_user", label: "Created by", hidden: true },
+  { key: "created_date", label: "Created date", hidden: true },
+  { key: "last_edited_user", label: "Edited by", hidden: true },
+  { key: "last_edited_date", label: "Edited date", hidden: true },
+  { key: "CreationDate", label: "AGOL creation date", hidden: true },
+  { key: "Creator", label: "AGOL creator", hidden: true },
+  { key: "EditDate", label: "AGOL edit date", hidden: true },
+  { key: "Editor", label: "AGOL editor", hidden: true },
+];
+
 export const DATASETS: DatasetConfig[] = [
   {
     // Fire Districts — rural fire district boundaries (polygon layer).
@@ -65,12 +88,11 @@ export const DATASETS: DatasetConfig[] = [
     // Layer index 23 looks odd but is correct — the "Fire" service exposes
     // exactly one layer, id 23.
     id: "fireDistricts",
-    title: "Fire Districts",
-    publicDescription:
-      "Boundaries of the rural fire districts and fire service areas that " +
-      "cover Missoula County. Each polygon is the territory a district is " +
-      "responsible for protecting.",
-    sourcePage:
+    displayName: "Fire Response Zones",
+    description:
+      "The territory each rural fire district protects — which crews answer " +
+      "the call at a given address in Missoula County.",
+    sourceUrl:
       "https://missoula-county-open-data-mcgis.hub.arcgis.com/datasets/MCGIS::fire-districts",
     serviceUrl:
       "https://services1.arcgis.com/NQWYt9dWr9BlL9QE/arcgis/rest/services/Fire/FeatureServer/23",
@@ -78,9 +100,14 @@ export const DATASETS: DatasetConfig[] = [
     nameField: "name",
     tableFields: [
       { key: "name", label: "District" },
-      { key: "code", label: "Code" },
+      { key: "code", label: "District code" },
       { key: "description", label: "Description" },
       { key: "contact", label: "Contact" },
+      { key: "objectid", label: "Object ID", hidden: true },
+      { key: "globalid", label: "Global ID", hidden: true },
+      { key: "shape__Area", label: "Shape area", hidden: true },
+      { key: "shape__Length", label: "Shape length", hidden: true },
+      ...ARCGIS_BOOKKEEPING,
     ],
     geometryParams: { geometryPrecision: "5", maxAllowableOffset: "0.0003" },
     includeInPublicMap: true,
@@ -92,12 +119,11 @@ export const DATASETS: DatasetConfig[] = [
     // dedicated safety point layer; this is the closest county-infrastructure
     // point set (three of the 24 points are fire stations/halls).
     id: "pollingLocations",
-    title: "Polling Locations",
-    publicDescription:
-      "Point locations of Missoula County polling places — the public " +
-      "buildings (schools, community centers, and several fire stations) " +
-      "the county relies on for civic operations.",
-    sourcePage:
+    displayName: "Polling Locations",
+    description:
+      "Where Missoula County votes — the schools, community centers, and " +
+      "fire halls that double as everyday civic infrastructure.",
+    sourceUrl:
       "https://missoula-county-open-data-mcgis.hub.arcgis.com/datasets/MCGIS::polling-locations",
     serviceUrl:
       "https://services1.arcgis.com/NQWYt9dWr9BlL9QE/arcgis/rest/services/PollingLocation/FeatureServer/25",
@@ -105,10 +131,15 @@ export const DATASETS: DatasetConfig[] = [
     nameField: "name",
     tableFields: [
       { key: "name", label: "Location" },
-      { key: "address", label: "Address" },
+      { key: "address", label: "Street address" },
       { key: "city", label: "City" },
       { key: "state", label: "State" },
-      { key: "zipcode", label: "ZIP" },
+      { key: "zipcode", label: "ZIP code" },
+      { key: "latitude", label: "Latitude" },
+      { key: "longitude", label: "Longitude" },
+      { key: "objectid", label: "Object ID", hidden: true },
+      { key: "globalid", label: "Global ID", hidden: true },
+      ...ARCGIS_BOOKKEEPING,
     ],
     geometryParams: {},
     includeInPublicMap: true,
@@ -123,21 +154,24 @@ export const DATASETS: DatasetConfig[] = [
     // holds the FEMA flood-zone designation (AE, X, etc.) and serves as the
     // label.
     id: "floodplain",
-    title: "Flood Hazard Zones",
-    publicDescription:
-      "FEMA DFIRM 2019 floodplain polygons (with Letter of Map Change " +
-      "updates) marking areas of Missoula County subject to flood hazard, " +
-      "labeled by FEMA zone designation.",
-    sourcePage:
+    displayName: "Flood Hazard Zones",
+    description:
+      "FEMA-designated flood hazard areas — the land where flooding is " +
+      "likely enough to shape insurance, permits, and building decisions.",
+    sourceUrl:
       "https://missoula-county-open-data-mcgis.hub.arcgis.com/datasets/MCGIS::dfirm-2019-lomc-floodplain",
     serviceUrl:
       "https://services1.arcgis.com/NQWYt9dWr9BlL9QE/arcgis/rest/services/DFIRM_2019_LOMC/FeatureServer/6",
     geometryKind: "polygon",
     nameField: "femades",
     tableFields: [
-      { key: "OBJECTID", label: "ID" },
       { key: "femades", label: "FEMA zone" },
-      { key: "acres", label: "Acres" },
+      { key: "acres", label: "Mapped acres" },
+      { key: "OBJECTID", label: "Object ID", hidden: true },
+      { key: "globalid", label: "Global ID", hidden: true },
+      { key: "Shape__Area", label: "Shape area", hidden: true },
+      { key: "Shape__Length", label: "Shape length", hidden: true },
+      ...ARCGIS_BOOKKEEPING,
     ],
     geometryParams: { geometryPrecision: "4", maxAllowableOffset: "0.0005" },
     // 955 polygons is too much noise for the public summary map; the public

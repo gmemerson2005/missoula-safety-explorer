@@ -17,7 +17,10 @@ export interface DataTableColumn {
 interface DataTableProps {
   /** Used to label the search input for screen readers. */
   title: string;
-  columns: DataTableColumn[];
+  /** Columns shown by default. */
+  visible: DataTableColumn[];
+  /** Internal bookkeeping columns, hidden until the user opts in. */
+  internal?: DataTableColumn[];
   rows: Record<string, CellValue>[];
 }
 
@@ -49,10 +52,16 @@ function formatCell(key: string, value: CellValue): string {
   return String(value);
 }
 
-export default function DataTable({ title, columns, rows }: DataTableProps) {
+export default function DataTable({ title, visible, internal = [], rows }: DataTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [showInternal, setShowInternal] = useState(false);
+
+  const columns = useMemo(
+    () => (showInternal ? [...visible, ...internal] : visible),
+    [visible, internal, showInternal]
+  );
 
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -109,6 +118,17 @@ export default function DataTable({ title, columns, rows }: DataTableProps) {
           placeholder={`Search ${title.toLowerCase()}…`}
           className="w-full max-w-xs border border-line bg-background px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-faint"
         />
+        {internal.length > 0 ? (
+          <label className="flex cursor-pointer items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-faint hover:text-muted">
+            <input
+              type="checkbox"
+              checked={showInternal}
+              onChange={(e) => setShowInternal(e.target.checked)}
+              className="accent-current"
+            />
+            Show internal fields ({internal.length})
+          </label>
+        ) : null}
         <span
           role="status"
           className="ml-auto font-mono text-[11px] uppercase tracking-widest text-faint"

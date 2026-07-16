@@ -38,14 +38,15 @@ export async function buildMapLayers(
     if (result.ok) {
       layers.push({
         id: dataset.id,
-        title: dataset.title,
+        title: dataset.displayName,
+        description: dataset.description,
         kind: dataset.geometryKind,
         nameField: dataset.nameField,
         fields: role === "analyst" ? dataset.tableFields : [],
         geojson: result.value,
       });
     } else {
-      offline.push({ title: dataset.title, error: result.error });
+      offline.push({ title: dataset.displayName, error: result.error });
     }
   });
 

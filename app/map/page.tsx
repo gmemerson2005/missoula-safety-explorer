@@ -92,7 +92,7 @@ export default async function MapPage({
             return (
               <StatCard
                 key={dataset.id}
-                label={dataset.title}
+                label={dataset.displayName}
                 value={result.ok ? result.value : null}
                 unit={dataset.unit}
                 meta={result.ok ? "Missoula County GIS" : "source unavailable"}

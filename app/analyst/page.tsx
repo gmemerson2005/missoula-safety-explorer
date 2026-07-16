@@ -21,19 +21,28 @@ export const metadata: Metadata = { title: "Analyst console" };
 
 /**
  * The analyst tier shows every attribute the county publishes, so columns
- * are derived from the fetched rows (outFields=*) — the curated tableFields
- * config only supplies friendlier labels for the fields it knows about.
+ * are derived from the fetched rows (outFields=*) — the per-layer field map
+ * supplies readable labels and flags internal bookkeeping fields (OBJECTID,
+ * Shape__Area, edit tracking…), which the table hides by default behind a
+ * "show internal fields" toggle.
  */
 function deriveColumns(
   dataset: DatasetConfig,
   rows: FeatureProperties[]
-): { key: string; label: string }[] {
-  if (rows.length === 0) return dataset.tableFields;
-  const labelFor = new Map(dataset.tableFields.map((f) => [f.key, f.label]));
-  return Object.keys(rows[0]).map((key) => ({
-    key,
-    label: labelFor.get(key) ?? key,
-  }));
+): { visible: { key: string; label: string }[]; internal: { key: string; label: string }[] } {
+  const fieldFor = new Map(dataset.tableFields.map((f) => [f.key, f]));
+  const keys =
+    rows.length > 0
+      ? Object.keys(rows[0])
+      : dataset.tableFields.map((f) => f.key);
+  const visible: { key: string; label: string }[] = [];
+  const internal: { key: string; label: string }[] = [];
+  for (const key of keys) {
+    const field = fieldFor.get(key);
+    const column = { key, label: field?.label ?? key };
+    (field?.hidden ? internal : visible).push(column);
+  }
+  return { visible, internal };
 }
 
 /** Group rows by an attribute, counting and summing numeric `sumKey`. */
@@ -234,10 +243,10 @@ export default async function AnalystPage() {
       {DATASETS.map((dataset, i) => {
         const result = tableResults[i];
         return (
-          <section key={dataset.id} aria-label={dataset.title} className="mt-10">
+          <section key={dataset.id} aria-label={dataset.displayName} className="mt-10">
             <div className="flex flex-wrap items-baseline gap-3">
               <h2 className="font-mono text-sm font-semibold uppercase tracking-[0.2em]">
-                {dataset.title}
+                {dataset.displayName}
               </h2>
               <span className="font-mono text-xs text-tier-text">
                 {result.ok
@@ -245,7 +254,7 @@ export default async function AnalystPage() {
                   : "offline"}
               </span>
               <a
-                href={getDataset(dataset.id).sourcePage}
+                href={getDataset(dataset.id).sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted hover:text-foreground"
@@ -256,12 +265,12 @@ export default async function AnalystPage() {
             <div className="mt-3">
               {result.ok ? (
                 <DataTable
-                  title={dataset.title}
-                  columns={deriveColumns(dataset, result.value)}
+                  title={dataset.displayName}
+                  {...deriveColumns(dataset, result.value)}
                   rows={result.value}
                 />
               ) : (
-                <OfflinePanel title={dataset.title} error={result.error} />
+                <OfflinePanel title={dataset.displayName} error={result.error} />
               )}
             </div>
           </section>

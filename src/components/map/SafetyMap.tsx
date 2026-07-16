@@ -24,8 +24,8 @@ export interface MapLayerData {
   nameField: string;
   /** One-sentence description, shown as toggle helper text. */
   description?: string;
-  /** Attribute keys+labels shown in analyst popups. */
-  fields: { key: string; label: string }[];
+  /** Attribute keys+labels shown in analyst popups (hidden ones skipped). */
+  fields: { key: string; label: string; hidden?: boolean }[];
   geojson: LayerGeoJSON;
 }
 
@@ -106,8 +106,13 @@ function popupHtml(layer: MapLayerData, feature: Feature, role: "public" | "anal
     `<div class="msx-popup-name">${name}</div>`;
   if (role === "public") return head;
   const labelFor = new Map(layer.fields.map((f) => [f.key, f.label]));
+  // Internal bookkeeping fields (OBJECTID, Shape__Area, edit tracking…) are
+  // flagged hidden in the per-layer field map — popups skip them.
+  const hiddenKeys = new Set(
+    layer.fields.filter((f) => f.hidden).map((f) => f.key)
+  );
   const rows = Object.entries(props)
-    .filter(([key]) => key !== layer.nameField)
+    .filter(([key]) => key !== layer.nameField && !hiddenKeys.has(key))
     .map(([key, value]) => {
       const text =
         value === null || value === undefined || value === ""
